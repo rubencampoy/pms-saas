@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
+import bcrypt from 'bcryptjs';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { sql } from 'drizzle-orm';
@@ -66,6 +67,9 @@ async function seed() {
 
   // ── 2. Users ──
   console.log('👤 Creating users...');
+  const adminHash = await bcrypt.hash('admin123', 10);
+  const frontDeskHash = await bcrypt.hash('recepcion123', 10);
+
   const [adminUser] = await db
     .insert(users)
     .values([
@@ -74,14 +78,14 @@ async function seed() {
         email: 'admin@koalahostel.com',
         name: 'Rubén Campoy',
         role: 'admin',
-        passwordHash: '$2b$10$placeholder_hash_admin',
+        passwordHash: adminHash,
       },
       {
         organizationId: orgId,
         email: 'recepcion@koalahostel.com',
         name: 'María García',
         role: 'front_desk',
-        passwordHash: '$2b$10$placeholder_hash_frontdesk',
+        passwordHash: frontDeskHash,
       },
     ])
     .returning();
@@ -298,7 +302,7 @@ async function seed() {
         nationality: 'ES',
         dateOfBirth: '1985-03-15',
         vipStatus: 'gold',
-        totalStays: '12',
+        totalStays: 12,
         totalRevenue: '2450.00',
       },
       {
@@ -312,7 +316,7 @@ async function seed() {
         nationality: 'GB',
         dateOfBirth: '1992-07-22',
         vipStatus: 'none',
-        totalStays: '2',
+        totalStays: 2,
         totalRevenue: '380.00',
       },
       {
@@ -326,7 +330,7 @@ async function seed() {
         nationality: 'DE',
         dateOfBirth: '1978-11-03',
         vipStatus: 'silver',
-        totalStays: '5',
+        totalStays: 5,
         totalRevenue: '1200.00',
       },
       {
@@ -340,7 +344,7 @@ async function seed() {
         nationality: 'ES',
         dateOfBirth: '1990-01-28',
         vipStatus: 'none',
-        totalStays: '1',
+        totalStays: 1,
         totalRevenue: '95.00',
       },
       {
@@ -354,7 +358,7 @@ async function seed() {
         nationality: 'FR',
         dateOfBirth: '1988-09-10',
         vipStatus: 'none',
-        totalStays: '3',
+        totalStays: 3,
         totalRevenue: '540.00',
       },
     ])
@@ -368,7 +372,7 @@ async function seed() {
 
   // ── 7. Rate Plans ──
   console.log('💰 Creating rate plans...');
-  const [stdRate] = await db
+  await db
     .insert(ratePlans)
     .values([
       {
