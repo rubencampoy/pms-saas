@@ -11,7 +11,9 @@ export const config = {
      * - favicon.ico, sitemap.xml, robots.txt (metadata files)
      * - public folder assets
      * - api/auth (Auth.js routes — must be accessible unauthenticated)
+     * - api/upload (file upload routes — auth handled in route handler)
+     * - api/public, book (public booking engine routes)
      */
-    '/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|api/auth|api/public|book).*)',
+    '/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|api/auth|api/public|api/upload|book).*)',
   ],
 };

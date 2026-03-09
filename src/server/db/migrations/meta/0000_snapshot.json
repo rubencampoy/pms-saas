@@ -1,5 +1,5 @@
 {
-  "id": "a54a56e4-b048-4356-9e66-2beaffed402d",
+  "id": "02828c56-4d7a-42c7-bcda-cf7538b8bf12",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1963,8 +1963,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.booking_engine_settings": {
-      "name": "booking_engine_settings",
+    "public.room_type_images": {
+      "name": "room_type_images",
       "schema": "",
       "columns": {
         "id": {
@@ -1980,238 +1980,33 @@
           "primaryKey": false,
           "notNull": true
         },
-        "property_id": {
-          "name": "property_id",
+        "room_type_id": {
+          "name": "room_type_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
-        "availability_view": {
-          "name": "availability_view",
-          "type": "varchar(20)",
+        "url": {
+          "name": "url",
+          "type": "varchar(500)",
           "primaryKey": false,
-          "notNull": true,
-          "default": "'collapsed'"
+          "notNull": true
         },
-        "price_format": {
-          "name": "price_format",
-          "type": "varchar(20)",
+        "alt": {
+          "name": "alt",
+          "type": "varchar(255)",
           "primaryKey": false,
-          "notNull": true,
-          "default": "'lowest_night'"
+          "notNull": false
         },
-        "specific_room": {
-          "name": "specific_room",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "addons_display": {
-          "name": "addons_display",
-          "type": "varchar(20)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'before'"
-        },
-        "guest_filter": {
-          "name": "guest_filter",
-          "type": "varchar(30)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'full'"
-        },
-        "default_adults": {
-          "name": "default_adults",
+        "sort_order": {
+          "name": "sort_order",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
-          "default": 2
+          "default": 0
         },
-        "show_unavailable": {
-          "name": "show_unavailable",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "auto_assign": {
-          "name": "auto_assign",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "limit_by_type": {
-          "name": "limit_by_type",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "show_restrictions": {
-          "name": "show_restrictions",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "show_rates": {
-          "name": "show_rates",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "field_postal_address": {
-          "name": "field_postal_address",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "field_nationality": {
-          "name": "field_nationality",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "field_gender": {
-          "name": "field_gender",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "field_id_document": {
-          "name": "field_id_document",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "field_company": {
-          "name": "field_company",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "field_phone": {
-          "name": "field_phone",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "field_arrival_time": {
-          "name": "field_arrival_time",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "field_terms_and_conditions": {
-          "name": "field_terms_and_conditions",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "auto_confirm_email": {
-          "name": "auto_confirm_email",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "redirect_confirmation": {
-          "name": "redirect_confirmation",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "redirect_url": {
-          "name": "redirect_url",
-          "type": "varchar(500)",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "''"
-        },
-        "require_cvv": {
-          "name": "require_cvv",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "language": {
-          "name": "language",
-          "type": "varchar(10)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'es'"
-        },
-        "analytics_platform": {
-          "name": "analytics_platform",
-          "type": "varchar(10)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'ga4'"
-        },
-        "ga_tracking_id": {
-          "name": "ga_tracking_id",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "''"
-        },
-        "ga_domain": {
-          "name": "ga_domain",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "''"
-        },
-        "google_ads_conversion_id": {
-          "name": "google_ads_conversion_id",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "''"
-        },
-        "google_ads_conversion_label": {
-          "name": "google_ads_conversion_label",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "''"
-        },
-        "facebook_pixel_id": {
-          "name": "facebook_pixel_id",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "''"
-        },
-        "widget_type": {
-          "name": "widget_type",
-          "type": "varchar(20)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'stacked'"
-        },
-        "widget_language": {
-          "name": "widget_language",
-          "type": "varchar(10)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'es'"
-        },
-        "widget_open_new_window": {
-          "name": "widget_open_new_window",
+        "is_cover": {
+          "name": "is_cover",
           "type": "boolean",
           "primaryKey": false,
           "notNull": true,
@@ -2232,33 +2027,11 @@
           "default": "now()"
         }
       },
-      "indexes": {
-        "booking_engine_settings_org_property_idx": {
-          "name": "booking_engine_settings_org_property_idx",
-          "columns": [
-            {
-              "expression": "organization_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "property_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
+      "indexes": {},
       "foreignKeys": {
-        "booking_engine_settings_organization_id_organizations_id_fk": {
-          "name": "booking_engine_settings_organization_id_organizations_id_fk",
-          "tableFrom": "booking_engine_settings",
+        "room_type_images_organization_id_organizations_id_fk": {
+          "name": "room_type_images_organization_id_organizations_id_fk",
+          "tableFrom": "room_type_images",
           "tableTo": "organizations",
           "columnsFrom": [
             "organization_id"
@@ -2269,17 +2042,17 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "booking_engine_settings_property_id_properties_id_fk": {
-          "name": "booking_engine_settings_property_id_properties_id_fk",
-          "tableFrom": "booking_engine_settings",
-          "tableTo": "properties",
+        "room_type_images_room_type_id_room_types_id_fk": {
+          "name": "room_type_images_room_type_id_room_types_id_fk",
+          "tableFrom": "room_type_images",
+          "tableTo": "room_types",
           "columnsFrom": [
-            "property_id"
+            "room_type_id"
           ],
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
