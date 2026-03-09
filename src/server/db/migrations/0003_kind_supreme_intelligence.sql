@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "unq_rates_org_plan_room_date" ON "rates" USING btree ("organization_id","rate_plan_id","room_type_id","date");

@@ -48,6 +48,7 @@
     "next-intl": "^4.8.2",
     "postgres": "^3.4.8",
     "react": "19.2.3",
+    "react-day-picker": "^9.13.2",
     "react-dom": "19.2.3",
     "react-hook-form": "^7.71.1",
     "recharts": "^3.7.0",
@@ -73,6 +74,7 @@
     "prettier": "^3.8.1",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vitest": "^4.0.18"
+    "vitest": "^4.0.18",
+    "xlsx": "^0.18.5"
   }
 }

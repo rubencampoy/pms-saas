@@ -13,9 +13,14 @@ import {
   guests,
   reservations,
   ratePlans,
+  rates,
+  seasons,
+  supplements,
   folios,
   folioLineItems,
   housekeepingTasks,
+  bookingEngineSettings,
+  bookingEngineAddons,
 } from '../schema';
 
 const connectionString = process.env.DATABASE_URL;
@@ -35,6 +40,11 @@ async function seed() {
   await db.delete(folioLineItems);
   await db.delete(folios);
   await db.delete(reservations);
+  await db.delete(rates);
+  await db.delete(supplements);
+  await db.delete(seasons);
+  await db.delete(bookingEngineAddons);
+  await db.delete(bookingEngineSettings);
   await db.delete(units);
   await db.delete(roomTypes);
   await db.delete(ratePlans);
@@ -372,7 +382,7 @@ async function seed() {
 
   // ── 7. Rate Plans ──
   console.log('💰 Creating rate plans...');
-  await db
+  const [rpKheStd, rpKheNr, rpKhmStd] = await db
     .insert(ratePlans)
     .values([
       {
@@ -409,6 +419,181 @@ async function seed() {
     .returning();
 
   console.log('   ✓ Rate plans created');
+
+  // ── 7b. Rates (per-date pricing for the next 90 days) ──
+  console.log('💶 Creating rates for next 90 days...');
+  const today = new Date();
+  const rateValues: Array<{
+    organizationId: string;
+    ratePlanId: string;
+    roomTypeId: string;
+    date: string;
+    amount: string;
+    currency: string;
+  }> = [];
+
+  // Price map: { ratePlanId: { roomTypeId: basePrice } }
+  const priceMap: Array<{ rpId: string; rtId: string; base: number }> = [
+    // KHE STD
+    { rpId: rpKheStd!.id, rtId: kheDbl!.id, base: 90 },
+    { rpId: rpKheStd!.id, rtId: kheSgl!.id, base: 55 },
+    { rpId: rpKheStd!.id, rtId: kheDrm6!.id, base: 22 },
+    // KHE NR (10% cheaper)
+    { rpId: rpKheNr!.id, rtId: kheDbl!.id, base: 81 },
+    { rpId: rpKheNr!.id, rtId: kheSgl!.id, base: 49 },
+    { rpId: rpKheNr!.id, rtId: kheDrm6!.id, base: 20 },
+    // KHM STD
+    { rpId: rpKhmStd!.id, rtId: khmDbl!.id, base: 110 },
+    { rpId: rpKhmStd!.id, rtId: khmSte!.id, base: 180 },
+  ];
+
+  for (let d = 0; d < 90; d++) {
+    const dateObj = new Date(today);
+    dateObj.setDate(today.getDate() + d);
+    const dateStr = dateObj.toISOString().split('T')[0]!;
+    const dayOfWeek = dateObj.getDay();
+    const isWeekend = dayOfWeek === 5 || dayOfWeek === 6; // Fri, Sat
+
+    for (const pm of priceMap) {
+      // Weekend surcharge: +15%
+      const amount = isWeekend
+        ? Math.round(pm.base * 1.15)
+        : pm.base;
+
+      rateValues.push({
+        organizationId: orgId,
+        ratePlanId: pm.rpId,
+        roomTypeId: pm.rtId,
+        date: dateStr,
+        amount: amount.toFixed(2),
+        currency: 'EUR',
+      });
+    }
+  }
+
+  // Insert in batches of 200
+  for (let i = 0; i < rateValues.length; i += 200) {
+    await db.insert(rates).values(rateValues.slice(i, i + 200));
+  }
+  console.log(`   ✓ ${rateValues.length} rate rows created`);
+
+  // ── 7c. Booking Engine Settings ──
+  console.log('⚙️  Creating booking engine settings...');
+  await db.insert(bookingEngineSettings).values([
+    {
+      organizationId: orgId,
+      propertyId: kheId,
+      availabilityView: 'collapsed',
+      priceFormat: 'lowest_night',
+      specificRoom: false,
+      addonsDisplay: 'before',
+      guestFilter: 'full',
+      defaultAdults: 2,
+      showUnavailable: true,
+      autoAssign: true,
+      fieldPostalAddress: true,
+      fieldNationality: true,
+      fieldGender: false,
+      fieldIdDocument: true,
+      fieldCompany: false,
+      fieldPhone: true,
+      fieldArrivalTime: true,
+      fieldTermsAndConditions: true,
+      autoConfirmEmail: true,
+      redirectConfirmation: false,
+      language: 'es',
+    },
+    {
+      organizationId: orgId,
+      propertyId: khmId,
+      availabilityView: 'expanded',
+      priceFormat: 'total_stay',
+      specificRoom: false,
+      addonsDisplay: 'before',
+      guestFilter: 'full',
+      defaultAdults: 2,
+      showUnavailable: true,
+      autoAssign: true,
+      fieldPostalAddress: false,
+      fieldNationality: true,
+      fieldGender: false,
+      fieldIdDocument: false,
+      fieldCompany: false,
+      fieldPhone: true,
+      fieldArrivalTime: false,
+      fieldTermsAndConditions: true,
+      autoConfirmEmail: true,
+      redirectConfirmation: false,
+      language: 'es',
+    },
+  ]);
+  console.log('   ✓ Booking engine settings for KHE and KHM');
+
+  // ── 7d. Booking Engine Addons ──
+  console.log('🎁 Creating booking engine addons...');
+  await db.insert(bookingEngineAddons).values([
+    {
+      organizationId: orgId,
+      propertyId: kheId,
+      name: 'Desayuno Buffet',
+      description: 'Desayuno buffet completo con opciones vegetarianas y sin gluten.',
+      price: '8.00',
+      currency: 'EUR',
+      addonType: 'per_person',
+      icon: 'restaurant',
+      sortOrder: 1,
+      isActive: true,
+    },
+    {
+      organizationId: orgId,
+      propertyId: kheId,
+      name: 'Parking privado',
+      description: 'Plaza de garaje cubierta a 50m del hostel.',
+      price: '12.00',
+      currency: 'EUR',
+      addonType: 'per_night',
+      icon: 'local_parking',
+      sortOrder: 2,
+      isActive: true,
+    },
+    {
+      organizationId: orgId,
+      propertyId: kheId,
+      name: 'Late Check-out (14:00)',
+      description: 'Sal más tarde sin prisa. Sujeto a disponibilidad.',
+      price: '15.00',
+      currency: 'EUR',
+      addonType: 'per_stay',
+      icon: 'schedule',
+      sortOrder: 3,
+      isActive: true,
+    },
+    {
+      organizationId: orgId,
+      propertyId: khmId,
+      name: 'Desayuno Gourmet',
+      description: 'Desayuno gourmet con productos locales del Mercado Central.',
+      price: '14.00',
+      currency: 'EUR',
+      addonType: 'per_person',
+      icon: 'restaurant',
+      sortOrder: 1,
+      isActive: true,
+    },
+    {
+      organizationId: orgId,
+      propertyId: khmId,
+      name: 'Pack Bienvenida',
+      description: 'Botella de cava, frutas y bombones en la habitación.',
+      price: '25.00',
+      currency: 'EUR',
+      addonType: 'per_stay',
+      icon: 'card_giftcard',
+      sortOrder: 2,
+      isActive: true,
+    },
+  ]);
+  console.log('   ✓ Addons for KHE (3) and KHM (2)');
 
   // ── 8. Reservations ──
   console.log('📋 Creating reservations...');
@@ -610,9 +795,13 @@ async function seed() {
   console.log(`  Units:        ${kheUnits.length + khmUnits.length} (${kheUnits.length} KHE + ${khmUnits.length} KHM)`);
   console.log(`  Users:        2 (admin + front_desk)`);
   console.log(`  Guests:       5`);
+  console.log(`  Rate Plans:   3 (2 KHE + 1 KHM)`);
+  console.log(`  Rates:        ${rateValues.length} (90 days)`);
   console.log(`  Reservations: 3 (confirmed, checked_in, checked_out)`);
   console.log(`  Folios:       2 (1 open, 1 closed)`);
   console.log(`  HK Tasks:     2`);
+  console.log(`  BE Settings:  2 (KHE, KHM)`);
+  console.log(`  BE Addons:    5 (3 KHE + 2 KHM)`);
 
   await client.end();
 }

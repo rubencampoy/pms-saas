@@ -12,6 +12,6 @@ export const config = {
      * - public folder assets
      * - api/auth (Auth.js routes — must be accessible unauthenticated)
      */
-    '/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|api/auth).*)',
+    '/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|api/auth|api/public|book).*)',
   ],
 };

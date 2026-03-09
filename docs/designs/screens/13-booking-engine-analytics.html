@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HotelOS — Motor de Reservas: Analítica</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Manrope', 'sans-serif'] },
+          colors: {
+            primary: '#137fec',
+            'background-light': '#f6f7f8',
+            'background-dark': '#101922',
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    body { font-family: 'Manrope', sans-serif; -webkit-font-smoothing: antialiased; }
+    .toggle-track {
+      width: 40px; height: 22px; border-radius: 11px;
+      background: #cbd5e1; transition: background 0.2s; position: relative; cursor: pointer;
+    }
+    .toggle-track.active { background: #137fec; }
+    .toggle-thumb {
+      width: 18px; height: 18px; border-radius: 50%; background: white;
+      position: absolute; top: 2px; left: 2px; transition: transform 0.2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    .toggle-track.active .toggle-thumb { transform: translateX(18px); }
+  </style>
+</head>
+<body class="bg-background-light text-slate-900 min-h-screen flex">
+
+  <!-- ═══════════════ SIDEBAR ═══════════════ -->
+  <aside class="w-64 bg-[#0a1118] min-h-screen flex flex-col flex-shrink-0 sticky top-0 self-start" style="height:100vh">
+    <div class="h-16 flex items-center px-6 border-b border-slate-800">
+      <div class="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+        <span class="text-white font-bold text-sm">H</span>
+      </div>
+      <span class="ml-3 text-white font-bold text-lg">HotelOS</span>
+    </div>
+    <nav class="flex-1 px-3 py-4 space-y-1">
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white">
+        <span class="material-icons text-[20px] text-slate-500">dashboard</span> Panel
+      </a>
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white">
+        <span class="material-icons text-[20px] text-slate-500">calendar_month</span> Recepción
+      </a>
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white">
+        <span class="material-icons text-[20px] text-slate-500">book_online</span> Reservas
+      </a>
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white">
+        <span class="material-icons text-[20px] text-slate-500">cleaning_services</span> Limpieza
+      </a>
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white">
+        <span class="material-icons text-[20px] text-slate-500">people</span> Huéspedes
+      </a>
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white">
+        <span class="material-icons text-[20px] text-slate-500">bar_chart</span> Analítica
+      </a>
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium bg-primary/10 text-primary">
+        <span class="material-icons text-[20px] text-primary">settings</span> Configuración
+      </a>
+    </nav>
+    <div class="p-4 border-t border-slate-800 flex items-center gap-3">
+      <div class="w-9 h-9 rounded-full bg-indigo-600 ring-2 ring-slate-700 flex items-center justify-center text-white text-xs font-bold">RG</div>
+      <div class="flex-1 min-w-0">
+        <p class="text-sm font-medium text-white truncate">Rubén García</p>
+        <p class="text-xs text-slate-500 truncate">Admin</p>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ═══════════════ MAIN CONTENT ═══════════════ -->
+  <main class="flex-1 min-h-screen">
+    <div class="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto">
+
+      <!-- Page header -->
+      <div class="mb-8">
+        <h1 class="text-2xl font-bold text-slate-900">Motor de Reservas</h1>
+        <p class="mt-1 text-sm text-slate-500">Configura el motor de reservas online de tu propiedad</p>
+      </div>
+
+      <!-- Tabs -->
+      <div class="flex items-center gap-1 mb-6 border-b border-slate-200">
+        <a href="12-booking-engine-settings.html" class="flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px text-slate-500 hover:text-slate-900 border-transparent hover:border-slate-300">
+          <span class="material-icons text-lg">tune</span>
+          Ajustes
+        </a>
+        <a href="#" class="flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px text-primary border-primary">
+          <span class="material-icons text-lg text-primary">analytics</span>
+          Analítica
+        </a>
+        <a href="14-booking-engine-widgets.html" class="flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px text-slate-500 hover:text-slate-900 border-transparent hover:border-slate-300">
+          <span class="material-icons text-lg">widgets</span>
+          Widgets
+        </a>
+        <a href="#" class="flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px text-slate-500 hover:text-slate-900 border-transparent hover:border-slate-300">
+          <span class="material-icons text-lg">palette</span>
+          Personalización
+        </a>
+        <a href="#" class="flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px text-slate-500 hover:text-slate-900 border-transparent hover:border-slate-300">
+          <span class="material-icons text-lg">email</span>
+          Emails
+        </a>
+      </div>
+
+      <!-- Property selector -->
+      <div class="flex items-center gap-3 mb-6">
+        <span class="text-sm font-medium text-slate-700">Propiedad:</span>
+        <div class="relative">
+          <select class="appearance-none bg-white border border-slate-300 rounded-lg text-sm font-medium text-slate-700 pl-4 pr-10 py-2 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none cursor-pointer">
+            <option>Koala Beach Hostel</option>
+            <option>Koala Mountain Lodge</option>
+          </select>
+          <span class="material-icons absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-lg pointer-events-none">expand_more</span>
+        </div>
+      </div>
+
+      <!-- ═══════════════ ANALYTICS CONTENT ═══════════════ -->
+      <div class="max-w-3xl space-y-6">
+
+        <!-- Platform selector -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+          <h3 class="text-sm font-semibold text-slate-900 mb-1">Plataforma de Analítica</h3>
+          <p class="text-xs text-slate-500 mb-5">Selecciona cómo integrar el seguimiento de conversiones</p>
+
+          <div class="grid grid-cols-2 gap-3">
+            <!-- GA4 Card -->
+            <label class="relative flex flex-col items-center gap-3 p-5 rounded-xl border-2 border-primary bg-primary/5 cursor-pointer transition-all hover:shadow-md">
+              <input type="radio" name="analytics-platform" checked class="sr-only" />
+              <div class="absolute top-3 right-3">
+                <span class="material-icons text-primary text-lg">check_circle</span>
+              </div>
+              <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+                <rect width="40" height="40" rx="8" fill="#F9AB00" fill-opacity="0.15"/>
+                <path d="M20 12C15.58 12 12 15.58 12 20C12 24.42 15.58 28 20 28C24.42 28 28 24.42 28 20H20V12Z" fill="#F9AB00"/>
+                <circle cx="26" cy="14" r="3" fill="#E37400"/>
+              </svg>
+              <div class="text-center">
+                <p class="text-sm font-semibold text-slate-900">Google Analytics 4</p>
+                <p class="text-xs text-slate-500 mt-0.5">Seguimiento directo con GA4</p>
+              </div>
+            </label>
+
+            <!-- GTM Card -->
+            <label class="relative flex flex-col items-center gap-3 p-5 rounded-xl border-2 border-slate-200 hover:border-slate-300 cursor-pointer transition-all hover:shadow-md">
+              <input type="radio" name="analytics-platform" class="sr-only" />
+              <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+                <rect width="40" height="40" rx="8" fill="#4285F4" fill-opacity="0.15"/>
+                <path d="M14 14H26V26H14V14Z" fill="#4285F4" fill-opacity="0.3"/>
+                <path d="M18 14L26 14V22L18 14Z" fill="#4285F4"/>
+                <circle cx="18" cy="22" r="3" fill="#4285F4"/>
+              </svg>
+              <div class="text-center">
+                <p class="text-sm font-semibold text-slate-900">Google Tag Manager</p>
+                <p class="text-xs text-slate-500 mt-0.5">Gestión centralizada de tags</p>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Google Analytics fields -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+          <div class="flex items-center gap-3 mb-5">
+            <div class="p-2 rounded-lg bg-amber-50 text-amber-600">
+              <span class="material-icons text-xl">analytics</span>
+            </div>
+            <div>
+              <h3 class="text-sm font-semibold text-slate-900">Google Analytics</h3>
+              <p class="text-xs text-slate-500">Configuración de seguimiento y conversiones</p>
+            </div>
+          </div>
+
+          <div class="space-y-5">
+            <!-- GA4 Tracking ID -->
+            <div>
+              <label class="text-sm font-medium text-slate-700 mb-1.5 flex items-center gap-2">
+                Google Analytics Tracking ID
+                <button class="text-slate-400 hover:text-slate-600" title="Formato: G-XXXXXXXXXX. Encuéntralo en GA4 > Admin > Data Streams">
+                  <span class="material-icons text-base">info_outline</span>
+                </button>
+              </label>
+              <input type="text" value="G-ABC123XYZ" placeholder="G-XXXXXXXXXX" class="w-full max-w-md bg-white border border-slate-300 rounded-lg text-sm px-4 py-2.5 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none placeholder:text-slate-400 font-mono" />
+            </div>
+
+            <!-- Domain -->
+            <div>
+              <label class="text-sm font-medium text-slate-700 mb-1.5 flex items-center gap-2">
+                Dominio
+                <button class="text-slate-400 hover:text-slate-600" title="Dominio donde está integrado el motor de reservas">
+                  <span class="material-icons text-base">info_outline</span>
+                </button>
+              </label>
+              <input type="text" value="koalabeachhostel.com" placeholder="tu-dominio.com" class="w-full max-w-md bg-white border border-slate-300 rounded-lg text-sm px-4 py-2.5 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none placeholder:text-slate-400" />
+              <p class="text-xs text-slate-500 mt-1.5">Permite el seguimiento cross-domain entre tu web y el motor de reservas</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Google Ads fields -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+          <div class="flex items-center gap-3 mb-5">
+            <div class="p-2 rounded-lg bg-blue-50 text-blue-600">
+              <span class="material-icons text-xl">ads_click</span>
+            </div>
+            <div>
+              <h3 class="text-sm font-semibold text-slate-900">Google Ads</h3>
+              <p class="text-xs text-slate-500">Seguimiento de conversiones de campañas publicitarias</p>
+            </div>
+          </div>
+
+          <div class="space-y-5">
+            <!-- Conversion ID -->
+            <div>
+              <label class="text-sm font-medium text-slate-700 mb-1.5 flex items-center gap-2">
+                Conversion ID
+                <button class="text-slate-400 hover:text-slate-600" title="Formato: AW-XXXXXXXXX. Encuéntralo en Google Ads > Tools > Conversions">
+                  <span class="material-icons text-base">info_outline</span>
+                </button>
+              </label>
+              <input type="text" placeholder="AW-XXXXXXXXX" class="w-full max-w-md bg-white border border-slate-300 rounded-lg text-sm px-4 py-2.5 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none placeholder:text-slate-400 font-mono" />
+            </div>
+
+            <!-- Conversion Label -->
+            <div>
+              <label class="text-sm font-medium text-slate-700 mb-1.5 block">Conversion Label</label>
+              <input type="text" placeholder="xXxXxXxXxXx" class="w-full max-w-md bg-white border border-slate-300 rounded-lg text-sm px-4 py-2.5 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none placeholder:text-slate-400 font-mono" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Facebook Pixel -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+          <div class="flex items-center gap-3 mb-5">
+            <div class="p-2 rounded-lg bg-indigo-50 text-indigo-600">
+              <span class="material-icons text-xl">share</span>
+            </div>
+            <div>
+              <h3 class="text-sm font-semibold text-slate-900">Facebook Pixel</h3>
+              <p class="text-xs text-slate-500">Seguimiento de conversiones en Meta Ads</p>
+            </div>
+          </div>
+
+          <div>
+            <label class="text-sm font-medium text-slate-700 mb-1.5 flex items-center gap-2">
+              Facebook Pixel ID
+              <button class="text-slate-400 hover:text-slate-600" title="Encuéntralo en Meta Business Suite > Events Manager > Data Sources">
+                <span class="material-icons text-base">info_outline</span>
+              </button>
+            </label>
+            <input type="text" placeholder="123456789012345" class="w-full max-w-md bg-white border border-slate-300 rounded-lg text-sm px-4 py-2.5 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none placeholder:text-slate-400 font-mono" />
+            <p class="text-xs text-slate-500 mt-1.5">Se dispararán eventos <code class="text-xs bg-slate-100 px-1 py-0.5 rounded">Purchase</code> y <code class="text-xs bg-slate-100 px-1 py-0.5 rounded">InitiateCheckout</code> automáticamente</p>
+          </div>
+        </div>
+
+        <!-- Info banner -->
+        <div class="flex items-start gap-3 p-4 rounded-xl bg-blue-50 border border-blue-200">
+          <span class="material-icons text-blue-600 text-xl mt-0.5">info</span>
+          <div>
+            <p class="text-sm font-medium text-blue-900">Eventos de conversión</p>
+            <p class="text-xs text-blue-700 mt-1">El motor de reservas dispara automáticamente eventos de conversión al completarse una reserva. Incluye: valor de la reserva, moneda, tipo de habitación y canal de origen.</p>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Save button bar -->
+      <div class="max-w-3xl mt-8 flex items-center justify-end gap-3 pt-6 border-t border-slate-200">
+        <button class="px-4 py-2.5 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors">
+          Descartar cambios
+        </button>
+        <button class="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors shadow-sm shadow-primary/30">
+          <span class="material-icons text-lg">save</span>
+          Guardar Analítica
+        </button>
+      </div>
+
+    </div>
+  </main>
+
+</body>
+</html>

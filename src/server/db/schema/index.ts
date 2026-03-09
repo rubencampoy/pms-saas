@@ -16,3 +16,6 @@ export * from './folios';
 export * from './folio-line-items';
 export * from './payments';
 export * from './housekeeping-tasks';
+export * from './booking-engine-settings';
+export * from './booking-engine-addons';
+export * from './integrations';

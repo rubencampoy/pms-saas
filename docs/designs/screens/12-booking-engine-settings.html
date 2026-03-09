@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HotelOS — Motor de Reservas: Ajustes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Manrope', 'sans-serif'] },
+          colors: {
+            primary: '#137fec',
+            'background-light': '#f6f7f8',
+            'background-dark': '#101922',
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    body { font-family: 'Manrope', sans-serif; -webkit-font-smoothing: antialiased; }
+    /* Custom toggle switch */
+    .toggle-track {
+      width: 40px; height: 22px; border-radius: 11px;
+      background: #cbd5e1; transition: background 0.2s; position: relative; cursor: pointer;
+    }
+    .toggle-track.active { background: #137fec; }
+    .toggle-thumb {
+      width: 18px; height: 18px; border-radius: 50%; background: white;
+      position: absolute; top: 2px; left: 2px; transition: transform 0.2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    .toggle-track.active .toggle-thumb { transform: translateX(18px); }
+    /* Collapsible sections */
+    .section-body { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
+    .section-body.open { max-height: 1200px; }
+    .section-chevron { transition: transform 0.2s; }
+    .section-chevron.open { transform: rotate(180deg); }
+  </style>
+</head>
+<body class="bg-background-light text-slate-900 min-h-screen flex">
+
+  <!-- ═══════════════ SIDEBAR ═══════════════ -->
+  <aside class="w-64 bg-[#0a1118] min-h-screen flex flex-col flex-shrink-0 sticky top-0 self-start" style="height:100vh">
+    <!-- Logo -->
+    <div class="h-16 flex items-center px-6 border-b border-slate-800">
+      <div class="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+        <span class="text-white font-bold text-sm">H</span>
+      </div>
+      <span class="ml-3 text-white font-bold text-lg">HotelOS</span>
+    </div>
+    <!-- Nav -->
+    <nav class="flex-1 px-3 py-4 space-y-1">
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white">
+        <span class="material-icons text-[20px] text-slate-500">dashboard</span> Panel
+      </a>
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white">
+        <span class="material-icons text-[20px] text-slate-500">calendar_month</span> Recepción
+      </a>
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white">
+        <span class="material-icons text-[20px] text-slate-500">book_online</span> Reservas
+      </a>
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white">
+        <span class="material-icons text-[20px] text-slate-500">cleaning_services</span> Limpieza
+      </a>
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white">
+        <span class="material-icons text-[20px] text-slate-500">people</span> Huéspedes
+      </a>
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white">
+        <span class="material-icons text-[20px] text-slate-500">bar_chart</span> Analítica
+      </a>
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium bg-primary/10 text-primary">
+        <span class="material-icons text-[20px] text-primary">settings</span> Configuración
+      </a>
+    </nav>
+    <!-- User -->
+    <div class="p-4 border-t border-slate-800 flex items-center gap-3">
+      <div class="w-9 h-9 rounded-full bg-indigo-600 ring-2 ring-slate-700 flex items-center justify-center text-white text-xs font-bold">RG</div>
+      <div class="flex-1 min-w-0">
+        <p class="text-sm font-medium text-white truncate">Rubén García</p>
+        <p class="text-xs text-slate-500 truncate">Admin</p>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ═══════════════ MAIN CONTENT ═══════════════ -->
+  <main class="flex-1 min-h-screen">
+    <div class="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto">
+
+      <!-- Page header -->
+      <div class="mb-8">
+        <h1 class="text-2xl font-bold text-slate-900">Motor de Reservas</h1>
+        <p class="mt-1 text-sm text-slate-500">Configura el motor de reservas online de tu propiedad</p>
+      </div>
+
+      <!-- Tabs -->
+      <div class="flex items-center gap-1 mb-6 border-b border-slate-200">
+        <a href="#" class="flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px text-primary border-primary">
+          <span class="material-icons text-lg text-primary">tune</span>
+          Ajustes
+        </a>
+        <a href="#" class="flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px text-slate-500 hover:text-slate-900 border-transparent hover:border-slate-300">
+          <span class="material-icons text-lg">analytics</span>
+          Analítica
+        </a>
+        <a href="#" class="flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px text-slate-500 hover:text-slate-900 border-transparent hover:border-slate-300">
+          <span class="material-icons text-lg">widgets</span>
+          Widgets
+        </a>
+        <a href="#" class="flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px text-slate-500 hover:text-slate-900 border-transparent hover:border-slate-300">
+          <span class="material-icons text-lg">palette</span>
+          Personalización
+        </a>
+        <a href="#" class="flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px text-slate-500 hover:text-slate-900 border-transparent hover:border-slate-300">
+          <span class="material-icons text-lg">email</span>
+          Emails
+        </a>
+      </div>
+
+      <!-- Property selector -->
+      <div class="flex items-center gap-3 mb-6">
+        <span class="text-sm font-medium text-slate-700">Propiedad:</span>
+        <div class="relative">
+          <select class="appearance-none bg-white border border-slate-300 rounded-lg text-sm font-medium text-slate-700 pl-4 pr-10 py-2 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none cursor-pointer">
+            <option>Koala Beach Hostel</option>
+            <option>Koala Mountain Lodge</option>
+          </select>
+          <span class="material-icons absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-lg pointer-events-none">expand_more</span>
+        </div>
+      </div>
+
+      <!-- ═══════════════ SECTIONS ═══════════════ -->
+      <div class="space-y-4">
+
+        <!-- Section 1: Disponibilidad y Alojamiento -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <button onclick="toggleSection(this)" class="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-colors">
+            <div class="flex items-center gap-3">
+              <div class="p-2 rounded-lg bg-blue-50 text-blue-600">
+                <span class="material-icons text-xl">visibility</span>
+              </div>
+              <div class="text-left">
+                <h3 class="text-sm font-semibold text-slate-900">Disponibilidad y Alojamiento</h3>
+                <p class="text-xs text-slate-500 mt-0.5">Controla cómo se muestra la disponibilidad al huésped</p>
+              </div>
+            </div>
+            <span class="material-icons text-slate-400 section-chevron open">expand_more</span>
+          </button>
+          <div class="section-body open border-t border-slate-100">
+            <div class="px-6 py-5 space-y-6">
+              <!-- Vista de disponibilidad -->
+              <div>
+                <label class="text-sm font-medium text-slate-700 mb-3 block">Vista de disponibilidad</label>
+                <div class="space-y-2">
+                  <label class="flex items-center gap-3 p-3 rounded-lg border border-slate-200 hover:border-primary/30 hover:bg-primary/5 cursor-pointer transition-colors">
+                    <input type="radio" name="availability-view" checked class="w-4 h-4 text-primary border-slate-300 focus:ring-primary" />
+                    <div>
+                      <span class="text-sm font-medium text-slate-900">Vista contraída</span>
+                      <p class="text-xs text-slate-500 mt-0.5">Muestra un resumen compacto de tipos de habitación</p>
+                    </div>
+                  </label>
+                  <label class="flex items-center gap-3 p-3 rounded-lg border border-slate-200 hover:border-primary/30 hover:bg-primary/5 cursor-pointer transition-colors">
+                    <input type="radio" name="availability-view" class="w-4 h-4 text-primary border-slate-300 focus:ring-primary" />
+                    <div>
+                      <span class="text-sm font-medium text-slate-900">Vista expandida</span>
+                      <p class="text-xs text-slate-500 mt-0.5">Muestra todos los detalles de cada tipo de habitación</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Formato de precio -->
+              <div>
+                <label class="text-sm font-medium text-slate-700 mb-3 block">Formato de precio</label>
+                <div class="space-y-2">
+                  <label class="flex items-center gap-3 p-3 rounded-lg border border-primary/30 bg-primary/5 cursor-pointer transition-colors">
+                    <input type="radio" name="price-format" checked class="w-4 h-4 text-primary border-slate-300 focus:ring-primary" />
+                    <div>
+                      <span class="text-sm font-medium text-slate-900">Precio más bajo por noche</span>
+                      <p class="text-xs text-slate-500 mt-0.5">Muestra el precio mínimo disponible</p>
+                    </div>
+                  </label>
+                  <label class="flex items-center gap-3 p-3 rounded-lg border border-slate-200 hover:border-primary/30 hover:bg-primary/5 cursor-pointer transition-colors">
+                    <input type="radio" name="price-format" class="w-4 h-4 text-primary border-slate-300 focus:ring-primary" />
+                    <div>
+                      <span class="text-sm font-medium text-slate-900">Precio total de la estancia</span>
+                      <p class="text-xs text-slate-500 mt-0.5">Muestra el importe total incluyendo todas las noches</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Reservar habitación específica -->
+              <div class="flex items-center justify-between p-4 rounded-lg bg-slate-50 border border-slate-100">
+                <div class="flex items-center gap-3">
+                  <span class="material-icons text-slate-400 text-lg">bed</span>
+                  <div>
+                    <span class="text-sm font-medium text-slate-900">Permitir reservar habitación específica</span>
+                    <p class="text-xs text-slate-500 mt-0.5">El huésped puede elegir una habitación concreta</p>
+                  </div>
+                </div>
+                <div class="toggle-track" onclick="toggleSwitch(this)">
+                  <div class="toggle-thumb"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 2: Mostrar Complementos -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <button onclick="toggleSection(this)" class="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-colors">
+            <div class="flex items-center gap-3">
+              <div class="p-2 rounded-lg bg-purple-50 text-purple-600">
+                <span class="material-icons text-xl">add_shopping_cart</span>
+              </div>
+              <div class="text-left">
+                <h3 class="text-sm font-semibold text-slate-900">Mostrar Complementos</h3>
+                <p class="text-xs text-slate-500 mt-0.5">Cuándo ofrecer extras y suplementos al huésped</p>
+              </div>
+            </div>
+            <span class="material-icons text-slate-400 section-chevron">expand_more</span>
+          </button>
+          <div class="section-body border-t border-slate-100">
+            <div class="px-6 py-5 space-y-4">
+              <label class="text-sm font-medium text-slate-700 mb-3 block">Mostrar complementos</label>
+              <div class="space-y-2">
+                <label class="flex items-center gap-3 p-3 rounded-lg border border-primary/30 bg-primary/5 cursor-pointer transition-colors">
+                  <input type="radio" name="addons" checked class="w-4 h-4 text-primary border-slate-300 focus:ring-primary" />
+                  <div>
+                    <span class="text-sm font-medium text-slate-900">Antes del checkout</span>
+                    <p class="text-xs text-slate-500 mt-0.5">El huésped ve los complementos antes de pagar</p>
+                  </div>
+                </label>
+                <label class="flex items-center gap-3 p-3 rounded-lg border border-slate-200 hover:border-primary/30 hover:bg-primary/5 cursor-pointer transition-colors">
+                  <input type="radio" name="addons" class="w-4 h-4 text-primary border-slate-300 focus:ring-primary" />
+                  <div>
+                    <span class="text-sm font-medium text-slate-900">Después del checkout</span>
+                    <p class="text-xs text-slate-500 mt-0.5">Los complementos se ofrecen tras completar la reserva</p>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 3: Filtro de Huéspedes -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <button onclick="toggleSection(this)" class="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-colors">
+            <div class="flex items-center gap-3">
+              <div class="p-2 rounded-lg bg-amber-50 text-amber-600">
+                <span class="material-icons text-xl">group</span>
+              </div>
+              <div class="text-left">
+                <h3 class="text-sm font-semibold text-slate-900">Filtro de Huéspedes</h3>
+                <p class="text-xs text-slate-500 mt-0.5">Tipo de selector de ocupación para el huésped</p>
+              </div>
+            </div>
+            <span class="material-icons text-slate-400 section-chevron">expand_more</span>
+          </button>
+          <div class="section-body border-t border-slate-100">
+            <div class="px-6 py-5 space-y-4">
+              <label class="text-sm font-medium text-slate-700 mb-3 block">Panel de selección de huéspedes</label>
+              <div class="space-y-2">
+                <label class="flex items-center gap-3 p-3 rounded-lg border border-primary/30 bg-primary/5 cursor-pointer transition-colors">
+                  <input type="radio" name="guest-filter" checked class="w-4 h-4 text-primary border-slate-300 focus:ring-primary" />
+                  <div>
+                    <span class="text-sm font-medium text-slate-900">Panel completo</span>
+                    <p class="text-xs text-slate-500 mt-0.5">Adultos, niños y bebés con selectores independientes</p>
+                  </div>
+                </label>
+                <label class="flex items-center gap-3 p-3 rounded-lg border border-slate-200 hover:border-primary/30 hover:bg-primary/5 cursor-pointer transition-colors">
+                  <input type="radio" name="guest-filter" class="w-4 h-4 text-primary border-slate-300 focus:ring-primary" />
+                  <div>
+                    <span class="text-sm font-medium text-slate-900">Adultos y niños</span>
+                    <p class="text-xs text-slate-500 mt-0.5">Solo selectores de adultos y niños</p>
+                  </div>
+                </label>
+                <label class="flex items-center gap-3 p-3 rounded-lg border border-slate-200 hover:border-primary/30 hover:bg-primary/5 cursor-pointer transition-colors">
+                  <input type="radio" name="guest-filter" class="w-4 h-4 text-primary border-slate-300 focus:ring-primary" />
+                  <div>
+                    <span class="text-sm font-medium text-slate-900">Ninguno</span>
+                    <p class="text-xs text-slate-500 mt-0.5">No mostrar selector de huéspedes</p>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 4: Ajustes de Ocupación -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <button onclick="toggleSection(this)" class="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-colors">
+            <div class="flex items-center gap-3">
+              <div class="p-2 rounded-lg bg-green-50 text-green-600">
+                <span class="material-icons text-xl">person</span>
+              </div>
+              <div class="text-left">
+                <h3 class="text-sm font-semibold text-slate-900">Ajustes de Ocupación</h3>
+                <p class="text-xs text-slate-500 mt-0.5">Valores predeterminados de ocupación</p>
+              </div>
+            </div>
+            <span class="material-icons text-slate-400 section-chevron">expand_more</span>
+          </button>
+          <div class="section-body border-t border-slate-100">
+            <div class="px-6 py-5">
+              <div class="max-w-xs">
+                <label class="text-sm font-medium text-slate-700 mb-2 block">Número predeterminado de adultos</label>
+                <div class="flex items-center gap-3">
+                  <button class="w-9 h-9 flex items-center justify-center rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50 transition-colors">
+                    <span class="material-icons text-lg">remove</span>
+                  </button>
+                  <input type="number" value="2" min="1" max="10" class="w-16 text-center bg-white border border-slate-300 rounded-lg text-sm font-semibold py-2 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none" />
+                  <button class="w-9 h-9 flex items-center justify-center rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50 transition-colors">
+                    <span class="material-icons text-lg">add</span>
+                  </button>
+                </div>
+                <p class="text-xs text-slate-500 mt-2">Valor que aparecerá por defecto en el selector de huéspedes</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 5: Ajustes de Alojamiento -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <button onclick="toggleSection(this)" class="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-colors">
+            <div class="flex items-center gap-3">
+              <div class="p-2 rounded-lg bg-indigo-50 text-indigo-600">
+                <span class="material-icons text-xl">bedroom_parent</span>
+              </div>
+              <div class="text-left">
+                <h3 class="text-sm font-semibold text-slate-900">Ajustes de Alojamiento</h3>
+                <p class="text-xs text-slate-500 mt-0.5">Opciones de visualización y restricciones de habitaciones</p>
+              </div>
+            </div>
+            <span class="material-icons text-slate-400 section-chevron">expand_more</span>
+          </button>
+          <div class="section-body border-t border-slate-100">
+            <div class="px-6 py-5 space-y-4">
+
+              <!-- Toggle: Mostrar sin disponibilidad -->
+              <div class="flex items-center justify-between py-3">
+                <div class="flex items-center gap-3">
+                  <div>
+                    <span class="text-sm font-medium text-slate-900">Mostrar tipos sin disponibilidad</span>
+                    <p class="text-xs text-slate-500 mt-0.5">Muestra habitaciones agotadas con etiqueta "Sin disponibilidad"</p>
+                  </div>
+                  <button class="text-slate-400 hover:text-slate-600" title="Los huéspedes verán las habitaciones no disponibles pero no podrán reservarlas">
+                    <span class="material-icons text-base">info_outline</span>
+                  </button>
+                </div>
+                <div class="toggle-track active" onclick="toggleSwitch(this)">
+                  <div class="toggle-thumb"></div>
+                </div>
+              </div>
+
+              <div class="border-t border-slate-100"></div>
+
+              <!-- Toggle: Asignación automática -->
+              <div class="flex items-center justify-between py-3">
+                <div>
+                  <span class="text-sm font-medium text-slate-900">Asignación automática de habitación</span>
+                  <p class="text-xs text-slate-500 mt-0.5">Asigna automáticamente una unidad al confirmar la reserva</p>
+                </div>
+                <div class="toggle-track active" onclick="toggleSwitch(this)">
+                  <div class="toggle-thumb"></div>
+                </div>
+              </div>
+
+              <div class="border-t border-slate-100"></div>
+
+              <!-- Toggle: Límite por tipo -->
+              <div class="flex items-center justify-between py-3">
+                <div>
+                  <span class="text-sm font-medium text-slate-900">Limitar reservas por tipo de habitación</span>
+                  <p class="text-xs text-slate-500 mt-0.5">Establece un máximo de reservas simultáneas por tipo</p>
+                </div>
+                <div class="toggle-track" onclick="toggleSwitch(this)">
+                  <div class="toggle-thumb"></div>
+                </div>
+              </div>
+
+              <div class="border-t border-slate-100"></div>
+
+              <!-- Toggle: Restricciones calendario -->
+              <div class="flex items-center justify-between py-3">
+                <div>
+                  <span class="text-sm font-medium text-slate-900">Mostrar restricciones en el calendario</span>
+                  <p class="text-xs text-slate-500 mt-0.5">Indica estancia mínima, cierre de llegada o salida en el calendario</p>
+                </div>
+                <div class="toggle-track active" onclick="toggleSwitch(this)">
+                  <div class="toggle-thumb"></div>
+                </div>
+              </div>
+
+              <div class="border-t border-slate-100"></div>
+
+              <!-- Toggle: Tarifas en calendario -->
+              <div class="flex items-center justify-between py-3">
+                <div class="flex items-center gap-3">
+                  <div>
+                    <span class="text-sm font-medium text-slate-900">Mostrar tarifas en el calendario</span>
+                    <p class="text-xs text-slate-500 mt-0.5">Muestra el precio por noche en cada celda del calendario</p>
+                  </div>
+                  <button class="text-slate-400 hover:text-slate-600" title="Se mostrará el precio base de cada tipo de habitación">
+                    <span class="material-icons text-base">info_outline</span>
+                  </button>
+                </div>
+                <div class="toggle-track" onclick="toggleSwitch(this)">
+                  <div class="toggle-thumb"></div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 6: Información del Huésped -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <button onclick="toggleSection(this)" class="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-colors">
+            <div class="flex items-center gap-3">
+              <div class="p-2 rounded-lg bg-cyan-50 text-cyan-600">
+                <span class="material-icons text-xl">contact_mail</span>
+              </div>
+              <div class="text-left">
+                <h3 class="text-sm font-semibold text-slate-900">Información del Huésped</h3>
+                <p class="text-xs text-slate-500 mt-0.5">Campos adicionales a solicitar durante la reserva</p>
+              </div>
+            </div>
+            <span class="material-icons text-slate-400 section-chevron">expand_more</span>
+          </button>
+          <div class="section-body border-t border-slate-100">
+            <div class="px-6 py-5 space-y-4">
+
+              <div class="flex items-center justify-between py-3">
+                <div><span class="text-sm font-medium text-slate-900">Dirección postal</span></div>
+                <div class="toggle-track active" onclick="toggleSwitch(this)"><div class="toggle-thumb"></div></div>
+              </div>
+              <div class="border-t border-slate-100"></div>
+
+              <div class="flex items-center justify-between py-3">
+                <div><span class="text-sm font-medium text-slate-900">Nacionalidad</span></div>
+                <div class="toggle-track active" onclick="toggleSwitch(this)"><div class="toggle-thumb"></div></div>
+              </div>
+              <div class="border-t border-slate-100"></div>
+
+              <div class="flex items-center justify-between py-3">
+                <div><span class="text-sm font-medium text-slate-900">Género</span></div>
+                <div class="toggle-track" onclick="toggleSwitch(this)"><div class="toggle-thumb"></div></div>
+              </div>
+              <div class="border-t border-slate-100"></div>
+
+              <div class="flex items-center justify-between py-3">
+                <div>
+                  <span class="text-sm font-medium text-slate-900">NIF / Documento de identidad</span>
+                  <p class="text-xs text-slate-500 mt-0.5">Obligatorio en algunos países para el registro de viajeros</p>
+                </div>
+                <div class="toggle-track active" onclick="toggleSwitch(this)"><div class="toggle-thumb"></div></div>
+              </div>
+              <div class="border-t border-slate-100"></div>
+
+              <div class="flex items-center justify-between py-3">
+                <div><span class="text-sm font-medium text-slate-900">Empresa</span></div>
+                <div class="toggle-track" onclick="toggleSwitch(this)"><div class="toggle-thumb"></div></div>
+              </div>
+              <div class="border-t border-slate-100"></div>
+
+              <div class="flex items-center justify-between py-3">
+                <div><span class="text-sm font-medium text-slate-900">Teléfono</span></div>
+                <div class="toggle-track active" onclick="toggleSwitch(this)"><div class="toggle-thumb"></div></div>
+              </div>
+              <div class="border-t border-slate-100"></div>
+
+              <div class="flex items-center justify-between py-3">
+                <div>
+                  <span class="text-sm font-medium text-slate-900">Hora estimada de llegada</span>
+                  <p class="text-xs text-slate-500 mt-0.5">Permite al huésped indicar su hora aproximada de check-in</p>
+                </div>
+                <div class="toggle-track" onclick="toggleSwitch(this)"><div class="toggle-thumb"></div></div>
+              </div>
+              <div class="border-t border-slate-100"></div>
+
+              <div class="flex items-center justify-between py-3">
+                <div>
+                  <span class="text-sm font-medium text-slate-900">Términos y condiciones</span>
+                  <p class="text-xs text-slate-500 mt-0.5">Requiere que el huésped acepte los términos antes de reservar</p>
+                </div>
+                <div class="toggle-track active" onclick="toggleSwitch(this)"><div class="toggle-thumb"></div></div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 7: Marketing -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <button onclick="toggleSection(this)" class="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-colors">
+            <div class="flex items-center gap-3">
+              <div class="p-2 rounded-lg bg-pink-50 text-pink-600">
+                <span class="material-icons text-xl">campaign</span>
+              </div>
+              <div class="text-left">
+                <h3 class="text-sm font-semibold text-slate-900">Marketing</h3>
+                <p class="text-xs text-slate-500 mt-0.5">Emails automáticos y redirecciones post-reserva</p>
+              </div>
+            </div>
+            <span class="material-icons text-slate-400 section-chevron">expand_more</span>
+          </button>
+          <div class="section-body border-t border-slate-100">
+            <div class="px-6 py-5 space-y-4">
+              <div class="flex items-center justify-between py-3">
+                <div>
+                  <span class="text-sm font-medium text-slate-900">Email de confirmación automático</span>
+                  <p class="text-xs text-slate-500 mt-0.5">Envía automáticamente un email al huésped al confirmar la reserva</p>
+                </div>
+                <div class="toggle-track active" onclick="toggleSwitch(this)"><div class="toggle-thumb"></div></div>
+              </div>
+              <div class="border-t border-slate-100"></div>
+              <div class="flex items-center justify-between py-3">
+                <div>
+                  <span class="text-sm font-medium text-slate-900">Redirigir a página de confirmación propia</span>
+                  <p class="text-xs text-slate-500 mt-0.5">Tras completar la reserva, redirige a una URL personalizada</p>
+                </div>
+                <div class="toggle-track" onclick="toggleSwitch(this)"><div class="toggle-thumb"></div></div>
+              </div>
+              <!-- Conditional URL field (shown when toggle is active) -->
+              <div class="pl-0 mt-2 hidden">
+                <label class="text-sm font-medium text-slate-700 mb-1.5 block">URL de redirección</label>
+                <input type="url" placeholder="https://tu-web.com/gracias" class="w-full max-w-lg bg-white border border-slate-300 rounded-lg text-sm px-4 py-2.5 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none placeholder:text-slate-400" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 8: Pago -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <button onclick="toggleSection(this)" class="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-colors">
+            <div class="flex items-center gap-3">
+              <div class="p-2 rounded-lg bg-emerald-50 text-emerald-600">
+                <span class="material-icons text-xl">payment</span>
+              </div>
+              <div class="text-left">
+                <h3 class="text-sm font-semibold text-slate-900">Pago</h3>
+                <p class="text-xs text-slate-500 mt-0.5">Configuración de seguridad del pago</p>
+              </div>
+            </div>
+            <span class="material-icons text-slate-400 section-chevron">expand_more</span>
+          </button>
+          <div class="section-body border-t border-slate-100">
+            <div class="px-6 py-5">
+              <div class="flex items-center justify-between py-3">
+                <div class="flex items-center gap-3">
+                  <div>
+                    <span class="text-sm font-medium text-slate-900">Solicitar CVV</span>
+                    <p class="text-xs text-slate-500 mt-0.5">Solicita el código de seguridad de la tarjeta para mayor protección</p>
+                  </div>
+                  <button class="text-slate-400 hover:text-slate-600" title="Recomendado para reducir fraude en pagos con tarjeta">
+                    <span class="material-icons text-base">info_outline</span>
+                  </button>
+                </div>
+                <div class="toggle-track active" onclick="toggleSwitch(this)"><div class="toggle-thumb"></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 9: Idioma -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <button onclick="toggleSection(this)" class="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-colors">
+            <div class="flex items-center gap-3">
+              <div class="p-2 rounded-lg bg-orange-50 text-orange-600">
+                <span class="material-icons text-xl">translate</span>
+              </div>
+              <div class="text-left">
+                <h3 class="text-sm font-semibold text-slate-900">Idioma</h3>
+                <p class="text-xs text-slate-500 mt-0.5">Idioma predeterminado del motor de reservas</p>
+              </div>
+            </div>
+            <span class="material-icons text-slate-400 section-chevron">expand_more</span>
+          </button>
+          <div class="section-body border-t border-slate-100">
+            <div class="px-6 py-5">
+              <div class="max-w-xs">
+                <label class="text-sm font-medium text-slate-700 mb-2 block">Idioma del motor de reservas</label>
+                <div class="relative">
+                  <select class="appearance-none w-full bg-white border border-slate-300 rounded-lg text-sm font-medium text-slate-700 pl-4 pr-10 py-2.5 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none cursor-pointer">
+                    <option>Español</option>
+                    <option>English</option>
+                    <option>Français</option>
+                    <option>Deutsch</option>
+                    <option>Italiano</option>
+                    <option>Português</option>
+                  </select>
+                  <span class="material-icons absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg pointer-events-none">expand_more</span>
+                </div>
+                <p class="text-xs text-slate-500 mt-2">El huésped verá el motor de reservas en este idioma por defecto</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- end sections -->
+
+      <!-- Save button bar -->
+      <div class="mt-8 flex items-center justify-end gap-3 pt-6 border-t border-slate-200">
+        <button class="px-4 py-2.5 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors">
+          Descartar cambios
+        </button>
+        <button class="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors shadow-sm shadow-primary/30">
+          <span class="material-icons text-lg">save</span>
+          Guardar Ajustes
+        </button>
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+    function toggleSection(btn) {
+      const body = btn.nextElementSibling;
+      const chevron = btn.querySelector('.section-chevron');
+      body.classList.toggle('open');
+      chevron.classList.toggle('open');
+    }
+    function toggleSwitch(el) {
+      el.classList.toggle('active');
+    }
+  </script>
+</body>
+</html>

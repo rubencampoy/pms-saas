@@ -17,3 +17,76 @@
 body {
   font-family: var(--font-sans);
 }
+
+/* Rate grid custom scrollbar */
+.rate-grid-scroll::-webkit-scrollbar {
+  height: 10px;
+  width: 10px;
+}
+.rate-grid-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.rate-grid-scroll::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.rate-grid-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
+}
+.dark .rate-grid-scroll::-webkit-scrollbar-thumb {
+  background-color: #475569;
+}
+
+/* ── Bulk calendar (react-day-picker v9) ── */
+.bulk-calendar .rdp-root {
+  --rdp-accent-color: #137fec;
+  --rdp-accent-background-color: #137fec20;
+  --rdp-range_middle-background-color: #137fec10;
+  --rdp-range_middle-color: #137fec;
+  --rdp-day_button-border-radius: 8px;
+  --rdp-day_button-height: 34px;
+  --rdp-day_button-width: 34px;
+  font-family: 'Manrope', sans-serif;
+  font-size: 13px;
+}
+.bulk-calendar .rdp-month_caption {
+  font-weight: 700;
+  font-size: 14px;
+  padding: 0 0 8px;
+}
+.bulk-calendar .rdp-button_previous,
+.bulk-calendar .rdp-button_next {
+  border-radius: 8px;
+}
+.bulk-calendar .rdp-weekday {
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+.bulk-calendar .rdp-today:not(.rdp-range_start):not(.rdp-range_end) .rdp-day_button {
+  font-weight: 800;
+  color: #137fec;
+}
+.bulk-calendar .rdp-range_start .rdp-day_button,
+.bulk-calendar .rdp-range_end .rdp-day_button {
+  background: #137fec;
+  color: white;
+  font-weight: 700;
+}
+.bulk-calendar .rdp-disabled .rdp-day_button {
+  opacity: 0.3;
+}
+.dark .bulk-calendar .rdp-root {
+  --rdp-accent-background-color: #137fec30;
+  --rdp-range_middle-background-color: #137fec15;
+  color: #e2e8f0;
+}
+.dark .bulk-calendar .rdp-weekday {
+  color: #64748b;
+}
+.dark .bulk-calendar .rdp-outside .rdp-day_button {
+  color: #475569;
+}

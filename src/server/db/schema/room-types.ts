@@ -11,6 +11,7 @@ export const roomTypes = pgTable('room_types', {
   description: text('description'),
   baseOccupancy: integer('base_occupancy').notNull().default(2),
   maxOccupancy: integer('max_occupancy').notNull().default(2),
+  images: text('images').array(),
   amenities: text('amenities').array(),
   sortOrder: integer('sort_order').notNull().default(0),
   isActive: boolean('is_active').notNull().default(true),

@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, date, numeric, integer, timestamp, boolean } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, date, numeric, integer, timestamp, boolean, uniqueIndex } from 'drizzle-orm/pg-core';
 import { organizations } from './organizations';
 import { ratePlans } from './rate-plans';
 import { roomTypes } from './room-types';
@@ -17,4 +17,13 @@ export const rates = pgTable('rates', {
   closedToDeparture: boolean('closed_to_departure').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-});
+  },
+  (table) => [
+    uniqueIndex('unq_rates_org_plan_room_date').on(
+      table.organizationId,
+      table.ratePlanId,
+      table.roomTypeId,
+      table.date,
+    ),
+  ],
+);
