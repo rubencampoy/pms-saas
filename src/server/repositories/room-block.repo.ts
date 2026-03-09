@@ -43,8 +43,8 @@ export const roomBlockRepo = {
     const conditions = [
       eq(roomBlocks.organizationId, organizationId),
       eq(roomBlocks.unitId, unitId),
-      lte(roomBlocks.startDate, endDate),
-      gte(roomBlocks.endDate, startDate),
+      lt(roomBlocks.startDate, endDate),
+      gt(roomBlocks.endDate, startDate),
     ];
 
     if (excludeId) {

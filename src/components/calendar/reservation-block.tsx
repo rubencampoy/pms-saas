@@ -67,7 +67,7 @@ export function ReservationBlock({
       className={`absolute top-[3px] z-[1] ${colors.bg} text-white rounded-md shadow-sm flex items-center px-2 ${colors.hover} transition-colors select-none ${
         isDraggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
       } ${isDragging ? 'opacity-40' : ''} ${
-        isSelected ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-900/50 z-[2]' : ''
+        isSelected ? 'ring-2 ring-inset ring-white shadow-[0_0_0_2px_rgba(0,0,0,0.3)] z-[2]' : ''
       }`}
       style={{
         left,
