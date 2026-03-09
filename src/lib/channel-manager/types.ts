@@ -118,6 +118,8 @@ export interface ProvisionResult {
   roomsCreated: number;
   ratesCreated: number;
   errorMessage?: string;
+  /** Raw API responses for debugging — shown in UI expandable section */
+  details?: string;
 }
 
 // ── Provider Interface ──

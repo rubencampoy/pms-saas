@@ -16,8 +16,10 @@ import {
 import { reservationRepo } from '@/server/repositories/reservation.repo';
 import { folioRepo } from '@/server/repositories/folio.repo';
 import { reservationService } from '@/server/services/reservation.service';
+import { ratePlanRepo } from '@/server/repositories/rate-plan.repo';
+import { rateRepo } from '@/server/repositories/rate.repo';
 import { ReservationStatus } from '@/lib/constants/reservation';
-import { differenceInDays } from 'date-fns';
+import { differenceInDays, addDays, format } from 'date-fns';
 import type { ActionResult } from '@/types/actions';
 import type { CreateReservationInput, ChangeReservationStatusInput, UpdateReservationNotesInput, UpdateReservationInput } from '@/lib/validators/reservation';
 
@@ -82,6 +84,60 @@ export async function checkAvailability(
     return { success: true, data: result };
   } catch (error) {
     console.error('checkAvailability failed:', error);
+    return { success: false, error: 'An unexpected error occurred' };
+  }
+}
+
+export async function calculateStayPrice(
+  input: { propertyId: string; roomTypeId: string; checkInDate: string; checkOutDate: string },
+): Promise<ActionResult<{ totalAmount: string; nightlyRates: { date: string; amount: string }[]; ratePlanName: string; minStay: number }>> {
+  try {
+    const session = await auth();
+    if (!session?.user) {
+      return { success: false, error: 'Not authenticated' };
+    }
+
+    const orgId = session.user.organizationId;
+
+    // Find the highest-priority active rate plan for this property
+    const plans = await ratePlanRepo.findByProperty(orgId, input.propertyId);
+    const activePlan = plans.find((p) => p.isActive);
+    if (!activePlan) {
+      return { success: false, error: 'No active rate plan found for this property' };
+    }
+
+    // Rates are per-night: checkIn is first night, checkOut-1 is last night
+    const lastNight = format(addDays(new Date(input.checkOutDate), -1), 'yyyy-MM-dd');
+
+    const rates = await rateRepo.findByRatePlanAndRoomType(
+      orgId,
+      activePlan.id,
+      input.roomTypeId,
+      input.checkInDate,
+      lastNight,
+    );
+
+    if (rates.length === 0) {
+      return { success: false, error: 'No rates configured for these dates' };
+    }
+
+    const nightlyRates = rates.map((r) => ({
+      date: r.date,
+      amount: r.amount,
+    }));
+
+    const totalAmount = rates
+      .reduce((sum, r) => sum + parseFloat(r.amount), 0)
+      .toFixed(2);
+
+    const minStay = Math.max(...rates.map((r) => r.minStay));
+
+    return {
+      success: true,
+      data: { totalAmount, nightlyRates, ratePlanName: activePlan.name, minStay },
+    };
+  } catch (error) {
+    console.error('calculateStayPrice failed:', error);
     return { success: false, error: 'An unexpected error occurred' };
   }
 }

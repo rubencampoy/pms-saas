@@ -15,6 +15,10 @@ import { useCalendarDnd } from './use-calendar-dnd';
 import { ReservationFormDialog } from '@/components/reservations/reservation-form-dialog';
 import type { ReservationFormDefaults } from '@/components/reservations/reservation-form-dialog';
 import { assignUnit, unassignRoom, changeReservationStatus } from '@/server/actions/reservations';
+import { createRoomBlock, deleteRoomBlock, updateRoomBlock } from '@/server/actions/room-blocks';
+import { RoomBlockPopover } from './room-block-popover';
+import { RoomBlockEditDialog } from './room-block-edit-dialog';
+import { RateOverridePopover } from './rate-override-popover';
 import { VALID_STATUS_TRANSITIONS, ReservationStatus } from '@/lib/constants/reservation';
 import { toast } from '@/lib/hooks/use-toast';
 import { useTranslations } from 'next-intl';
@@ -71,6 +75,16 @@ interface Rate {
   roomTypeId: string;
   date: string;
   amount: string;
+  minStay: number;
+}
+
+export interface RoomBlock {
+  id: string;
+  unitId: string;
+  type: string; // 'maintenance' | 'blocked'
+  startDate: string;
+  endDate: string;
+  reason: string | null;
 }
 
 interface CalendarClientProps {
@@ -81,6 +95,8 @@ interface CalendarClientProps {
   reservations: Reservation[];
   guests: Guest[];
   rates: Rate[];
+  defaultRatePlanId: string | null;
+  roomBlocks: RoomBlock[];
   initialStartDate: string;
   initialEndDate: string;
 }
@@ -112,10 +128,13 @@ export function CalendarClient({
   reservations,
   guests,
   rates,
+  defaultRatePlanId,
+  roomBlocks,
   initialStartDate,
   initialEndDate,
 }: CalendarClientProps) {
   const tCtx = useTranslations('contextMenu');
+  const tBlockPopover = useTranslations('roomBlockPopover');
   const router = useRouter();
 
   const gridContainerRef = useRef<HTMLDivElement>(null);
@@ -169,6 +188,15 @@ export function CalendarClient({
   // Pending panel state
   const [isPendingPanelOpen, setIsPendingPanelOpen] = useState(false);
 
+  // Drag-to-create reservation state
+  const [dragCreate, setDragCreate] = useState<{
+    unitId: string;
+    roomTypeId: string;
+    startDate: string;
+    endDate: string;
+  } | null>(null);
+  const dragCreateMovedRef = useRef(false);
+
   // Quick assign state
   const [quickAssignReservationId, setQuickAssignReservationId] = useState<string | null>(null);
 
@@ -188,11 +216,57 @@ export function CalendarClient({
     endDate: string;
   } | null>(null);
 
+  // Persisted selection highlight — stays visible while cellAction popover is open
+  const [cellSelection, setCellSelection] = useState<{
+    unitId: string;
+    roomTypeId: string;
+    startDate: string;
+    endDate: string;
+  } | null>(null);
+
   // Unassigned popover state (click on badge in occupancy row)
   const [unassignedPopover, setUnassignedPopover] = useState<{
     x: number;
     y: number;
     date: string;
+  } | null>(null);
+
+  // Room block popover state (click on a maintenance/blocked block)
+  const [blockPopover, setBlockPopover] = useState<{
+    x: number;
+    y: number;
+    blockId: string;
+  } | null>(null);
+
+  // Room block edit dialog
+  const [blockEdit, setBlockEdit] = useState<{
+    id: string;
+    type: string;
+    startDate: string;
+    endDate: string;
+    reason: string | null;
+  } | null>(null);
+
+  // Price row click-to-select state (two-click: first click = start, second click = end)
+  const [priceRowClickStart, setPriceRowClickStart] = useState<{
+    roomTypeId: string;
+    date: string;
+  } | null>(null);
+  const [priceRowHoverDate, setPriceRowHoverDate] = useState<string | null>(null);
+
+  // Price row selection + popover state (persists while popover is open)
+  const [priceRowSelection, setPriceRowSelection] = useState<{
+    roomTypeId: string;
+    startDate: string;
+    endDate: string;
+  } | null>(null);
+
+  const [rateOverridePopover, setRateOverridePopover] = useState<{
+    x: number;
+    y: number;
+    roomTypeId: string;
+    startDate: string;
+    endDate: string;
   } | null>(null);
 
   // Search state
@@ -305,6 +379,15 @@ export function CalendarClient({
     return map;
   }, [rates]);
 
+  // Rate data lookup (amount + minStay) for popover prefill
+  const rateDataMap = useMemo(() => {
+    const map = new Map<string, { amount: string; minStay: number }>();
+    for (const r of rates) {
+      map.set(`${r.roomTypeId}:${r.date}`, { amount: r.amount, minStay: r.minStay });
+    }
+    return map;
+  }, [rates]);
+
   // Panel selection state
   const [selectedReservationId, setSelectedReservationId] = useState<string | null>(null);
 
@@ -387,6 +470,16 @@ export function CalendarClient({
     }
     return map;
   }, [optimisticReservations]);
+
+  const blocksByUnit = useMemo(() => {
+    const map = new Map<string, RoomBlock[]>();
+    for (const b of roomBlocks) {
+      const existing = map.get(b.unitId) ?? [];
+      existing.push(b);
+      map.set(b.unitId, existing);
+    }
+    return map;
+  }, [roomBlocks]);
 
   // Pending reservations (no unit, assignable status)
   const pendingReservations = useMemo(
@@ -548,36 +641,325 @@ export function CalendarClient({
         (r) => r.unitId === unitId && r.checkInDate <= date && r.checkOutDate > date,
       );
       if (unitReservations.length > 0) return;
-      setCellAction({ x, y, unitId, roomTypeId, startDate: date, endDate: format(addDays(parseISO(date), 1), 'yyyy-MM-dd') });
+      // Clear rate override popover
+      setRateOverridePopover(null);
+      setPriceRowSelection(null);
+      setPriceRowClickStart(null);
+      setPriceRowHoverDate(null);
+      const endDate = format(addDays(parseISO(date), 1), 'yyyy-MM-dd');
+      setCellSelection({ unitId, roomTypeId, startDate: date, endDate });
+      setCellAction({ x, y, unitId, roomTypeId, startDate: date, endDate });
     },
     [optimisticReservations],
   );
 
   // --- New booking from cell ---
   const handleNewBookingFromCell = useCallback(
-    (_unitId: string, roomTypeId: string, checkIn: string, checkOut: string) => {
+    (unitId: string, roomTypeId: string, checkIn: string, checkOut: string) => {
       setCellAction(null);
+      setCellSelection(null);
       setNewBookingDefaults({
         propertyId: defaultPropertyId,
         roomTypeId,
         checkInDate: checkIn,
         checkOutDate: checkOut,
+        unitId,
       });
       setShowNewBooking(true);
     },
     [defaultPropertyId],
   );
 
+  // --- Create room block (maintenance / blocked) ---
+  const handleCreateBlock = useCallback(
+    async (type: 'maintenance' | 'blocked') => {
+      if (!cellAction) return;
+      const { unitId, startDate, endDate } = cellAction;
+      setCellAction(null);
+      setCellSelection(null);
+
+      const result = await createRoomBlock({
+        propertyId: defaultPropertyId,
+        unitId,
+        type,
+        startDate,
+        endDate,
+      });
+
+      if (result.success) {
+        toast({
+          variant: 'success',
+          title: type === 'maintenance' ? 'Mantenimiento creado' : 'Fechas bloqueadas',
+        });
+        router.refresh();
+      } else {
+        toast({ variant: 'error', title: result.error });
+      }
+    },
+    [cellAction, defaultPropertyId, router],
+  );
+
+  // --- Room block click handler ---
+  const handleBlockClick = useCallback(
+    (blockId: string, x: number, y: number) => {
+      // Close any other open popovers
+      setPopoverState(null);
+      setCellAction(null);
+      setCellSelection(null);
+      setContextMenu(null);
+      setRateOverridePopover(null);
+      setPriceRowSelection(null);
+      setPriceRowClickStart(null);
+      setPriceRowHoverDate(null);
+      setBlockPopover({ x, y, blockId });
+    },
+    [],
+  );
+
+  // Find the clicked block data for popover
+  const activeBlock = useMemo(() => {
+    if (!blockPopover) return null;
+    for (const blocks of blocksByUnit.values()) {
+      const found = blocks.find((b) => b.id === blockPopover.blockId);
+      if (found) return found;
+    }
+    return null;
+  }, [blockPopover, blocksByUnit]);
+
+  // Find unit name for the active block
+  const activeBlockUnitName = useMemo(() => {
+    if (!activeBlock) return '';
+    const unit = units.find((u) => u.id === activeBlock.unitId);
+    return unit?.name ?? '';
+  }, [activeBlock, units]);
+
+  // Compute prefill values for the rate override popover
+  const rateOverridePrefill = useMemo(() => {
+    if (!rateOverridePopover) return {
+      price: null as string | null,
+      minStay: null as number | null,
+      priceRange: null as { min: string; max: string } | null,
+      minStayRange: null as { min: number; max: number } | null,
+    };
+
+    const { roomTypeId: rtId, startDate: selStart, endDate: selEnd } = rateOverridePopover;
+    let commonPrice: string | null = null;
+    let commonMinStay: number | null = null;
+    let allSamePrice = true;
+    let allSameMinStay = true;
+    let minPrice = Infinity;
+    let maxPrice = -Infinity;
+    let minMinStay = Infinity;
+    let maxMinStay = -Infinity;
+
+    const s = parseISO(selStart);
+    const e = parseISO(selEnd);
+    const dayCount = differenceInDays(e, s);
+
+    for (let i = 0; i < dayCount; i++) {
+      const d = addDays(s, i);
+      const dayStr = format(d, 'yyyy-MM-dd');
+      const data = rateDataMap.get(`${rtId}:${dayStr}`);
+
+      if (data) {
+        const amt = parseFloat(data.amount);
+        if (amt < minPrice) minPrice = amt;
+        if (amt > maxPrice) maxPrice = amt;
+        if (data.minStay < minMinStay) minMinStay = data.minStay;
+        if (data.minStay > maxMinStay) maxMinStay = data.minStay;
+        if (commonPrice === null) commonPrice = data.amount;
+        else if (commonPrice !== data.amount) allSamePrice = false;
+        if (commonMinStay === null) commonMinStay = data.minStay;
+        else if (commonMinStay !== data.minStay) allSameMinStay = false;
+      } else {
+        if (commonPrice !== null) allSamePrice = false;
+        if (commonMinStay !== null) allSameMinStay = false;
+      }
+    }
+
+    return {
+      price: allSamePrice ? commonPrice : null,
+      minStay: allSameMinStay ? commonMinStay : null,
+      priceRange: !allSamePrice && minPrice !== Infinity
+        ? { min: String(minPrice), max: String(maxPrice) }
+        : null,
+      minStayRange: !allSameMinStay && minMinStay !== Infinity
+        ? { min: minMinStay, max: maxMinStay }
+        : null,
+    };
+  }, [rateOverridePopover, rateDataMap]);
+
+  const handleDeleteBlock = useCallback(
+    async () => {
+      if (!blockPopover) return;
+      const blockId = blockPopover.blockId;
+      setBlockPopover(null);
+
+      const result = await deleteRoomBlock({ id: blockId });
+      if (result.success) {
+        toast({
+          variant: 'success',
+          title: tBlockPopover('deleteSuccess'),
+        });
+        router.refresh();
+      } else {
+        toast({ variant: 'error', title: result.error ?? tBlockPopover('deleteFailed') });
+      }
+    },
+    [blockPopover, router, tBlockPopover],
+  );
+
+  const handleEditBlockOpen = useCallback(() => {
+    if (!activeBlock) return;
+    setBlockPopover(null);
+    setBlockEdit({
+      id: activeBlock.id,
+      type: activeBlock.type,
+      startDate: activeBlock.startDate,
+      endDate: activeBlock.endDate,
+      reason: activeBlock.reason,
+    });
+  }, [activeBlock]);
+
+  const handleEditBlockSave = useCallback(
+    async (data: { id: string; type: string; startDate: string; endDate: string; reason: string }) => {
+      const result = await updateRoomBlock(data);
+      if (result.success) {
+        toast({
+          variant: 'success',
+          title: tBlockPopover('updateSuccess'),
+        });
+        setBlockEdit(null);
+        router.refresh();
+      } else {
+        toast({ variant: 'error', title: result.error ?? tBlockPopover('updateFailed') });
+      }
+    },
+    [router, tBlockPopover],
+  );
+
+  // --- Drag-to-create callbacks ---
+  const handleDragCreateStart = useCallback(
+    (unitId: string, roomTypeId: string, date: string) => {
+      // Clear any previous selection / popover
+      setCellSelection(null);
+      setCellAction(null);
+      setRateOverridePopover(null);
+      setPriceRowSelection(null);
+      setPriceRowClickStart(null);
+      setPriceRowHoverDate(null);
+      dragCreateMovedRef.current = false;
+      setDragCreate({
+        unitId,
+        roomTypeId,
+        startDate: date,
+        endDate: format(addDays(parseISO(date), 1), 'yyyy-MM-dd'),
+      });
+    },
+    [],
+  );
+
+  const handleDragCreateMove = useCallback(
+    (date: string) => {
+      setDragCreate((prev) => {
+        if (!prev) return prev;
+        // endDate = hovered day itself (checkout date, exclusive upper bound)
+        // No +1: the cell the mouse is on IS the checkout day
+        const newEnd = date;
+        if (newEnd <= prev.startDate) return prev; // don't go backwards past start
+        if (newEnd === prev.endDate) return prev;  // no change
+        dragCreateMovedRef.current = true;
+        return { ...prev, endDate: newEnd };
+      });
+    },
+    [],
+  );
+
+  const handleDragCreateEnd = useCallback((mouseX: number, mouseY: number) => {
+    const dc = dragCreate;
+    if (!dc) return;
+    setDragCreate(null);
+
+    if (!dragCreateMovedRef.current) {
+      // No drag movement — fall back to cell action popover (click behavior)
+      return;
+    }
+
+    // Keep selection highlight visible while the popover is open
+    setCellSelection({
+      unitId: dc.unitId,
+      roomTypeId: dc.roomTypeId,
+      startDate: dc.startDate,
+      endDate: dc.endDate,
+    });
+
+    // Show cell action popover with the dragged date range so user can choose action
+    setCellAction({
+      x: mouseX,
+      y: mouseY,
+      unitId: dc.unitId,
+      roomTypeId: dc.roomTypeId,
+      startDate: dc.startDate,
+      endDate: dc.endDate,
+    });
+  }, [dragCreate]);
+
+  const handleDragCreateCancel = useCallback(() => {
+    setDragCreate(null);
+    dragCreateMovedRef.current = false;
+  }, []);
+
+  // --- Price row drag-to-select callbacks ---
+  // --- Price row click-to-select handler (two-click) ---
+  const handlePriceRowClick = useCallback(
+    (roomTypeId: string, dateStr: string, e: React.MouseEvent) => {
+      // Clear other popovers
+      setCellAction(null);
+      setCellSelection(null);
+      setBlockPopover(null);
+
+      if (rateOverridePopover) {
+        // Popover is open — close it and start fresh
+        setRateOverridePopover(null);
+        setPriceRowSelection(null);
+        setPriceRowClickStart({ roomTypeId, date: dateStr });
+        setPriceRowHoverDate(null);
+        return;
+      }
+
+      if (!priceRowClickStart || priceRowClickStart.roomTypeId !== roomTypeId) {
+        // First click (or different room type) — set start
+        setPriceRowClickStart({ roomTypeId, date: dateStr });
+        setPriceRowSelection(null);
+        setPriceRowHoverDate(null);
+        return;
+      }
+
+      // Second click on same room type — finalize selection & open popover
+      const date1 = priceRowClickStart.date;
+      const date2 = dateStr;
+      const selStart = date1 <= date2 ? date1 : date2;
+      const selLast = date1 <= date2 ? date2 : date1;
+      // endDate is exclusive (day after last selected night)
+      const selEnd = format(addDays(parseISO(selLast), 1), 'yyyy-MM-dd');
+
+      setPriceRowClickStart(null);
+      setPriceRowHoverDate(null);
+      setPriceRowSelection({ roomTypeId, startDate: selStart, endDate: selEnd });
+      setRateOverridePopover({
+        x: e.clientX,
+        y: e.clientY,
+        roomTypeId,
+        startDate: selStart,
+        endDate: selEnd,
+      });
+    },
+    [priceRowClickStart, rateOverridePopover],
+  );
+
   // Is there an active drag from the timeline (not from panel)?
   const isDragFromTimeline = dragState !== null && dragState.sourceUnitId !== '';
 
-  // Auto-open panel when there are pending reservations
-  useEffect(() => {
-    if (pendingReservations.length > 0 && !isPendingPanelOpen) {
-      setIsPendingPanelOpen(true);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // Derive popover reservation
   const popoverReservation = popoverState
@@ -619,8 +1001,8 @@ export function CalendarClient({
     // Only left-click, ignore if clicking on a reservation block or interactive element
     if (e.button !== 0) return;
     const target = e.target as HTMLElement;
-    // Don't pan if clicking on a draggable reservation, button, or input
-    if (target.closest('[draggable="true"]') || target.closest('button') || target.closest('select') || target.closest('input')) return;
+    // Don't pan if clicking on a draggable reservation, button, input, or calendar cell (drag-to-create)
+    if (target.closest('[draggable="true"]') || target.closest('button') || target.closest('select') || target.closest('input') || target.closest('[data-calendar-cell]') || target.closest('[data-price-cell]')) return;
 
     const grid = gridContainerRef.current;
     if (!grid) return;
@@ -679,6 +1061,42 @@ export function CalendarClient({
     window.addEventListener('mouseup', stopPan);
     return () => window.removeEventListener('mouseup', stopPan);
   }, []);
+
+  // Global mouseup to finalize drag-to-create even if mouse leaves grid
+  useEffect(() => {
+    const handleGlobalMouseUp = (e: globalThis.MouseEvent) => {
+      if (dragCreate) {
+        handleDragCreateEnd(e.clientX, e.clientY);
+      }
+    };
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+    return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
+  }, [dragCreate, handleDragCreateEnd]);
+
+  // Escape key cancels price row first click
+  useEffect(() => {
+    if (!priceRowClickStart) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setPriceRowClickStart(null);
+        setPriceRowHoverDate(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [priceRowClickStart]);
+
+  // Escape key cancels drag-to-create
+  useEffect(() => {
+    if (!dragCreate) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleDragCreateCancel();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [dragCreate, handleDragCreateCancel]);
 
   // Shift+Wheel → horizontal scroll
   useEffect(() => {
@@ -780,14 +1198,14 @@ export function CalendarClient({
                         }`}
                         style={{ width: colWidth }}
                       >
-                        <span className={`text-xs font-bold ${
+                        <span className={`text-sm font-bold ${
                           today
                             ? 'text-primary dark:text-blue-400'
                             : weekend
                               ? 'text-amber-600 dark:text-amber-400'
                               : 'text-slate-600 dark:text-slate-300'
                         }`}>{format(day, 'EEE')}</span>
-                        <span className={`text-[9px] ${
+                        <span className={`text-[11px] ${
                           today
                             ? 'text-primary/70 dark:text-blue-400/70'
                             : weekend
@@ -812,7 +1230,7 @@ export function CalendarClient({
                     return (
                       <div
                         key={`occ-${day.toISOString()}`}
-                        className="flex-shrink-0 border-r border-slate-100 dark:border-slate-700/30 flex items-center justify-center relative"
+                        className="flex-shrink-0 border-r border-slate-200 dark:border-slate-700 flex items-center justify-center relative"
                         style={{ width: colWidth }}
                       >
                         <span className={`text-[10px] font-bold ${
@@ -882,7 +1300,7 @@ export function CalendarClient({
                       return (
                         <div
                           key={unit.id}
-                          className="border-b border-slate-100 dark:border-slate-700/50 flex flex-col justify-center px-4 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors cursor-pointer"
+                          className="border-b border-slate-200 dark:border-slate-700 flex flex-col justify-center px-4 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors cursor-pointer"
                           style={{ height: ROW_HEIGHT }}
                         >
                           <div className="flex items-center justify-between">
@@ -920,7 +1338,7 @@ export function CalendarClient({
                       return (
                         <div
                           key={`bg-${day.toISOString()}`}
-                          className={`flex-shrink-0 border-r border-slate-200 dark:border-slate-700/50 h-full relative ${
+                          className={`flex-shrink-0 border-r border-slate-200 dark:border-slate-700 h-full relative ${
                             today
                               ? 'bg-primary/5 dark:bg-primary/5'
                               : weekend
@@ -949,28 +1367,63 @@ export function CalendarClient({
                           className="border-b border-slate-200 dark:border-slate-700 relative"
                           style={{ height: RT_HEADER_HEIGHT }}
                         />
+                        {/* Price row — click-to-select for rate overrides */}
                         <div
                           className="flex border-b border-slate-200 dark:border-slate-700 relative z-10 bg-white dark:bg-slate-800"
                           style={{ height: PRICE_ROW_HEIGHT }}
+                          onMouseLeave={() => setPriceRowHoverDate(null)}
                         >
                           {days.map((day) => {
                             const weekend = isWeekend(day);
                             const dayStr = format(day, 'yyyy-MM-dd');
                             const price = rateMap.get(`${group.roomType.id}:${dayStr}`);
+
+                            // Determine highlight state
+                            let isHighlighted = false;
+                            if (priceRowSelection
+                              && priceRowSelection.roomTypeId === group.roomType.id
+                              && dayStr >= priceRowSelection.startDate
+                              && dayStr < priceRowSelection.endDate) {
+                              isHighlighted = true; // In finalized selection
+                            } else if (priceRowClickStart && priceRowClickStart.roomTypeId === group.roomType.id) {
+                              if (priceRowHoverDate && priceRowHoverDate !== priceRowClickStart.date) {
+                                // Hover range preview between first click and hover
+                                const rangeA = priceRowClickStart.date <= priceRowHoverDate ? priceRowClickStart.date : priceRowHoverDate;
+                                const rangeB = priceRowClickStart.date <= priceRowHoverDate ? priceRowHoverDate : priceRowClickStart.date;
+                                isHighlighted = dayStr >= rangeA && dayStr <= rangeB;
+                              } else {
+                                // Just highlight the first clicked cell
+                                isHighlighted = dayStr === priceRowClickStart.date;
+                              }
+                            }
+
                             return (
                               <div
                                 key={`price-${day.toISOString()}`}
-                                className={`flex-shrink-0 border-r border-slate-100 dark:border-slate-700/30 flex items-center justify-center p-0.5 ${
-                                  weekend ? 'bg-amber-50/20 dark:bg-amber-900/5' : ''
+                                data-price-cell
+                                className={`flex-shrink-0 border-r border-slate-200 dark:border-slate-700 flex items-center justify-center p-0.5 cursor-pointer select-none transition-colors ${
+                                  isHighlighted
+                                    ? 'bg-primary/15 dark:bg-primary/25'
+                                    : weekend
+                                      ? 'bg-amber-50/20 dark:bg-amber-900/5 hover:bg-primary/10 dark:hover:bg-primary/10'
+                                      : 'hover:bg-primary/10 dark:hover:bg-primary/10'
                                 }`}
                                 style={{ width: colWidth }}
+                                onClick={(e) => handlePriceRowClick(group.roomType.id, dayStr, e)}
+                                onMouseEnter={() => {
+                                  if (priceRowClickStart && priceRowClickStart.roomTypeId === group.roomType.id) {
+                                    setPriceRowHoverDate(dayStr);
+                                  }
+                                }}
                               >
-                                <span className={`text-[10px] text-center ${
-                                  price
-                                    ? weekend
-                                      ? 'font-medium text-amber-600 dark:text-amber-500'
-                                      : 'font-medium text-slate-700 dark:text-slate-300'
-                                    : 'text-slate-400'
+                                <span className={`text-xs text-center ${
+                                  isHighlighted
+                                    ? 'font-bold text-primary dark:text-blue-400'
+                                    : price
+                                      ? weekend
+                                        ? 'font-semibold text-amber-600 dark:text-amber-500'
+                                        : 'font-semibold text-slate-700 dark:text-slate-300'
+                                      : 'text-slate-400'
                                 }`}>
                                   {price ? `€${parseFloat(price).toFixed(0)}` : '—'}
                                 </span>
@@ -1001,6 +1454,7 @@ export function CalendarClient({
                             key={unit.id}
                             unit={unit}
                             reservations={resByUnit.get(unit.id) ?? []}
+                            roomBlocks={blocksByUnit.get(unit.id) ?? []}
                             guestMap={guestMap}
                             days={days}
                             startDate={startDate}
@@ -1016,6 +1470,12 @@ export function CalendarClient({
                             onReservationClick={handleReservationClick}
                             onContextMenu={handleContextMenu}
                             onCellClick={handleCellClick}
+                            onBlockClick={handleBlockClick}
+                            dragCreate={dragCreate}
+                            cellSelection={cellSelection}
+                            onDragCreateStart={handleDragCreateStart}
+                            onDragCreateMove={handleDragCreateMove}
+                            onDragCreateEnd={handleDragCreateEnd}
                           />
                         ))}
                       </div>
@@ -1085,7 +1545,9 @@ export function CalendarClient({
               cellAction.endDate,
             )
           }
-          onClose={() => setCellAction(null)}
+          onMaintenance={() => handleCreateBlock('maintenance')}
+          onBlockDates={() => handleCreateBlock('blocked')}
+          onClose={() => { setCellAction(null); setCellSelection(null); }}
         />
       )}
 
@@ -1123,6 +1585,56 @@ export function CalendarClient({
           onNoShow={() => handleStatusChange(contextMenu.reservationId, ReservationStatus.NO_SHOW)}
           onUnassign={handleUnassign}
           onClose={() => setContextMenu(null)}
+        />
+      )}
+
+      {/* Room block popover */}
+      {blockPopover && activeBlock && (
+        <RoomBlockPopover
+          x={blockPopover.x}
+          y={blockPopover.y}
+          block={activeBlock}
+          unitName={activeBlockUnitName}
+          onReleaseDates={handleDeleteBlock}
+          onEdit={handleEditBlockOpen}
+          onClose={() => setBlockPopover(null)}
+        />
+      )}
+
+      {/* Room block edit dialog */}
+      {blockEdit && (
+        <RoomBlockEditDialog
+          block={blockEdit}
+          onSave={handleEditBlockSave}
+          onClose={() => setBlockEdit(null)}
+        />
+      )}
+
+      {/* Rate override popover */}
+      {rateOverridePopover && defaultRatePlanId && (
+        <RateOverridePopover
+          x={rateOverridePopover.x}
+          y={rateOverridePopover.y}
+          roomTypeId={rateOverridePopover.roomTypeId}
+          roomTypeName={
+            roomTypes.find((rt) => rt.id === rateOverridePopover.roomTypeId)?.name ?? ''
+          }
+          ratePlanId={defaultRatePlanId}
+          startDate={rateOverridePopover.startDate}
+          endDate={rateOverridePopover.endDate}
+          currentPrice={rateOverridePrefill.price}
+          currentMinStay={rateOverridePrefill.minStay}
+          priceRange={rateOverridePrefill.priceRange}
+          minStayRange={rateOverridePrefill.minStayRange}
+          onClose={() => {
+            setRateOverridePopover(null);
+            setPriceRowSelection(null);
+            setPriceRowClickStart(null);
+            setPriceRowHoverDate(null);
+          }}
+          onSaved={() => {
+            router.refresh();
+          }}
         />
       )}
 

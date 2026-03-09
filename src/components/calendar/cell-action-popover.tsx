@@ -3,7 +3,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { format, parseISO } from 'date-fns';
 import { useTranslations } from 'next-intl';
-import { toast } from '@/lib/hooks/use-toast';
 
 interface CellActionPopoverProps {
   x: number;
@@ -11,6 +10,8 @@ interface CellActionPopoverProps {
   startDate: string;
   endDate: string;
   onNewReservation: () => void;
+  onMaintenance: () => void;
+  onBlockDates: () => void;
   onClose: () => void;
 }
 
@@ -20,6 +21,8 @@ export function CellActionPopover({
   startDate,
   endDate,
   onNewReservation,
+  onMaintenance,
+  onBlockDates,
   onClose,
 }: CellActionPopoverProps) {
   const t = useTranslations('cellAction');
@@ -73,33 +76,27 @@ export function CellActionPopover({
       {/* New Reservation */}
       <button
         onClick={onNewReservation}
-        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
       >
         <span className="material-icons text-lg text-primary">add_circle</span>
         {t('newReservation')}
       </button>
 
-      {/* Maintenance — coming soon */}
+      {/* Maintenance */}
       <button
-        onClick={() => {
-          toast({ title: t('comingSoon'), variant: 'success' });
-          onClose();
-        }}
-        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+        onClick={onMaintenance}
+        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
       >
-        <span className="material-icons text-lg">build</span>
+        <span className="material-icons text-lg text-amber-500">build</span>
         {t('maintenance')}
       </button>
 
-      {/* Date Blocked — coming soon */}
+      {/* Block Dates */}
       <button
-        onClick={() => {
-          toast({ title: t('comingSoon'), variant: 'success' });
-          onClose();
-        }}
-        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+        onClick={onBlockDates}
+        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
       >
-        <span className="material-icons text-lg">block</span>
+        <span className="material-icons text-lg text-red-500">block</span>
         {t('dateBlocked')}
       </button>
     </div>

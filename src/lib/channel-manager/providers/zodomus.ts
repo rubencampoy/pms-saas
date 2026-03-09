@@ -1,3 +1,4 @@
+import { format, addDays } from 'date-fns';
 import { SyncDirection, SyncAction, SyncStatus, RETRY_ATTEMPTS, RETRY_BASE_DELAY_MS } from '@/lib/constants/channel-manager';
 import type {
   ChannelManagerProvider,
@@ -16,12 +17,16 @@ import type {
 } from '@/lib/channel-manager/types';
 
 // ── Zodomus API response types ──
+// NOTE: Zodomus API uses **camelCase** everywhere — POST body keys, response keys,
+//       AND GET query params (channelId, propertyId, dateFrom, dateTo).
+//       Values like propertyId, roomId, rateId are STRINGS (e.g. "321000").
+//       channelId can be number or string — Zodomus accepts both.
 
 interface ZodomusStatus {
-  return_code: number;
-  return_message: string;
-  channel_log_id?: string;
-  channel_other_messages?: string;
+  returnCode: number | string; // 200 or "200" = success, 400 = error
+  returnMessage: string | Record<string, string[]>; // string or validation errors object
+  channelLogId?: string;
+  channelOtherMessages?: string;
   timestamp?: string;
 }
 
@@ -29,13 +34,13 @@ interface ZodomusRate {
   id: string;
   name: string;
   active?: string;
-  max_persons?: number;
+  maxPersons?: string;
   policy?: string;
-  policy_id?: number;
+  policyId?: string;
 }
 
 interface ZodomusRoom {
-  id: number;
+  id: string; // e.g. "32100001"
   name: string;
   rates?: ZodomusRate[];
 }
@@ -50,8 +55,8 @@ interface ZodomusAccountResponse {
   account?: {
     name?: string;
     email?: string;
-    api_status?: string;
-    reservation_type?: string;
+    apiStatus?: string;
+    reservationType?: string;
   };
 }
 
@@ -65,10 +70,28 @@ interface ZodomusChannelResponse {
   channels?: ZodomusChannel[];
 }
 
+interface ZodomusPropertyCheckResponse {
+  status: ZodomusStatus;
+  mappedProducts?: Array<{
+    roomId: string;
+    rateId: string;
+    myRoomId: string;
+    myRateId: string;
+  }>;
+}
+
 // ── Helpers ──
 
 async function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Zodomus requires dateTo > dateFrom. For single-day updates,
+ * compute the next day as dateTo.
+ */
+function nextDay(dateStr: string): string {
+  return format(addDays(new Date(dateStr), 1), 'yyyy-MM-dd');
 }
 
 async function fetchWithRetry(
@@ -123,6 +146,43 @@ function baseUrl(config: CMConfig): string {
 }
 
 /**
+ * Safely parse JSON, returning null on failure.
+ */
+function safeParseJson(text: string): { status?: ZodomusStatus; [key: string]: unknown } | null {
+  try {
+    return JSON.parse(text) as { status?: ZodomusStatus; [key: string]: unknown };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Check if a Zodomus response indicates an error.
+ * Zodomus returns HTTP 200 even on errors — the real status is in the body.
+ * returnCode 200 or "200" = success (also 0/"0" for legacy), anything else = error.
+ */
+function isZodomusError(parsed: { status?: ZodomusStatus } | null): boolean {
+  if (!parsed?.status) return false;
+  const code = String(parsed.status.returnCode);
+  return code !== '0' && code !== '200';
+}
+
+/**
+ * Extract a human-readable error message from a Zodomus response.
+ */
+function getZodomusErrorMessage(parsed: { status?: ZodomusStatus } | null): string {
+  if (!parsed?.status) return 'Unknown error';
+  const msg = parsed.status.returnMessage;
+  if (typeof msg === 'string') return msg;
+  // Validation errors: { fieldName: ["error1", "error2"] }
+  const parts: string[] = [];
+  for (const [field, errors] of Object.entries(msg)) {
+    parts.push(`${field}: ${(errors as string[]).join(', ')}`);
+  }
+  return parts.join('; ');
+}
+
+/**
  * Fetch the list of active channels from Zodomus.
  * Each channel represents an OTA (Booking, Expedia, Airbnb, etc.)
  */
@@ -146,24 +206,37 @@ async function fetchChannels(config: CMConfig): Promise<ZodomusChannel[]> {
 /**
  * Fetch room-rates for a specific channel.
  * Returns rooms with their nested rate plans.
+ * GET params use camelCase: channelId, propertyId
  */
 async function fetchRoomRatesForChannel(
   config: CMConfig,
   channelId: number,
 ): Promise<ZodomusRoomRatesResponse> {
+  const url = `${baseUrl(config)}/room-rates?channelId=${channelId}&propertyId=${encodeURIComponent(config.hotelId)}`;
   const response = await fetchWithRetry(
-    `${baseUrl(config)}/room-rates?channel_id=${channelId}&property_id=${encodeURIComponent(config.hotelId)}`,
+    url,
     {
       method: 'GET',
       headers: buildHeaders(config),
     },
   );
 
+  const text = await response.text();
+
   if (!response.ok) {
-    throw new Error(`Failed to fetch room-rates for channel ${channelId}: HTTP ${response.status}`);
+    throw new Error(`Failed to fetch room-rates for channel ${channelId}: HTTP ${response.status} → ${text}`);
   }
 
-  return (await response.json()) as ZodomusRoomRatesResponse;
+  const data = safeParseJson(text) as ZodomusRoomRatesResponse | null;
+  if (!data) {
+    throw new Error(`Failed to parse room-rates response for channel ${channelId}: ${text.substring(0, 200)}`);
+  }
+
+  if (isZodomusError(data)) {
+    console.warn(`[Zodomus] fetchRoomRatesForChannel(${channelId}): API error → ${getZodomusErrorMessage(data)}`);
+  }
+
+  return data;
 }
 
 /**
@@ -179,18 +252,22 @@ async function buildChannelRoomMap(
   for (const channel of channels) {
     try {
       const data = await fetchRoomRatesForChannel(config, channel.id);
-      for (const room of data.rooms ?? []) {
+      const rooms = data.rooms ?? [];
+      console.log(`[Zodomus] buildChannelRoomMap: channel ${channel.id} (${channel.channel}) → ${rooms.length} rooms`);
+      for (const room of rooms) {
         const roomId = String(room.id);
         const existing = roomToChannels.get(roomId) ?? [];
         existing.push(channel.id);
         roomToChannels.set(roomId, existing);
       }
-    } catch {
+    } catch (err) {
       // Channel may not have this property configured — skip
+      console.warn(`[Zodomus] buildChannelRoomMap: channel ${channel.id} (${channel.channel}) FAILED:`, err instanceof Error ? err.message : err);
       continue;
     }
   }
 
+  console.log(`[Zodomus] buildChannelRoomMap: final map has ${roomToChannels.size} rooms →`, Object.fromEntries(roomToChannels));
   return roomToChannels;
 }
 
@@ -221,10 +298,10 @@ export const zodomusProvider: ChannelManagerProvider = {
 
       const data = (await response.json()) as ZodomusAccountResponse;
 
-      if (data.status?.return_code !== undefined && data.status.return_code !== 0) {
+      if (isZodomusError(data)) {
         return {
           valid: false,
-          errorMessage: `Zodomus error: ${data.status.return_message}`,
+          errorMessage: `Zodomus error: ${getZodomusErrorMessage(data)}`,
         };
       }
 
@@ -245,7 +322,9 @@ export const zodomusProvider: ChannelManagerProvider = {
    * Discovers active channels, then pushes each update to every channel
    * that has the corresponding room configured.
    *
-   * Zodomus expects: { channel_id, property_id, room_id, date_from, date_to, availability }
+   * Per Zodomus docs, all POST body values are STRINGS:
+   *   { "channelId": "1", "propertyId": "321000", "roomId": "32100001",
+   *     "dateFrom": "2019-12-01", "dateTo": "2019-12-31", "availability": 2 }
    */
   async pushAvailability(
     config: CMConfig,
@@ -256,27 +335,39 @@ export const zodomusProvider: ChannelManagerProvider = {
 
     try {
       const channels = await fetchChannels(config);
+      console.log(`[Zodomus] pushAvailability: ${channels.length} channels found: ${channels.map(c => `${c.channel}(${c.id})`).join(', ')}`);
+
       if (channels.length === 0) {
+        console.log(`[Zodomus] pushAvailability: no channels → skipping`);
         return { status: SyncStatus.SUCCESS, updatesProcessed: 0 };
       }
 
       // Discover which rooms exist on which channels
       const roomToChannels = await buildChannelRoomMap(config, channels);
 
+      // Log which external room IDs we're trying to push vs what's in the map
+      const uniqueRoomIds = new Set(updates.map(u => u.externalRoomTypeId));
+      console.log(`[Zodomus] pushAvailability: updates reference ${uniqueRoomIds.size} unique room IDs: ${Array.from(uniqueRoomIds).join(', ')}`);
+      for (const roomId of uniqueRoomIds) {
+        const chIds = roomToChannels.get(roomId);
+        console.log(`[Zodomus] pushAvailability: room ${roomId} → channels: ${chIds ? chIds.join(', ') : 'NOT FOUND IN MAP'}`);
+      }
+
       let totalSent = 0;
       let errorCount = 0;
       let lastErrorMsg = '';
+      let firstErrorLogged = false;
 
       for (const update of updates) {
         const channelIds = roomToChannels.get(update.externalRoomTypeId) ?? [];
 
         for (const channelId of channelIds) {
           const body = {
-            channel_id: channelId,
-            property_id: config.hotelId,
-            room_id: update.externalRoomTypeId,
-            date_from: update.date,
-            date_to: update.date,
+            channelId: String(channelId),
+            propertyId: config.hotelId,
+            roomId: update.externalRoomTypeId,
+            dateFrom: update.date,
+            dateTo: nextDay(update.date), // Zodomus requires dateTo > dateFrom
             availability: update.available,
           };
 
@@ -291,16 +382,32 @@ export const zodomusProvider: ChannelManagerProvider = {
 
           totalSent++;
 
-          if (!response.ok) {
+          const text = await response.text();
+          const parsed = safeParseJson(text);
+          if (isZodomusError(parsed)) {
             errorCount++;
-            const responseText = await response.text();
-            lastErrorMsg = `HTTP ${response.status}: ${responseText}`;
+            lastErrorMsg = getZodomusErrorMessage(parsed);
+            // Log first few errors for debugging
+            if (!firstErrorLogged) {
+              console.error(`[Zodomus] pushAvailability FIRST ERROR: body=${JSON.stringify(body)} → response=${text}`);
+              firstErrorLogged = true;
+            }
+          }
+
+          // Log progress every 100 requests
+          if (totalSent % 100 === 0) {
+            console.log(`[Zodomus] pushAvailability: progress ${totalSent} sent, ${errorCount} errors`);
           }
         }
       }
 
       const durationMs = Date.now() - start;
       const status = errorCount > 0 ? SyncStatus.ERROR : SyncStatus.SUCCESS;
+      console.log(`[Zodomus] pushAvailability: DONE in ${durationMs}ms — ${totalSent} sent, ${errorCount} errors, ${totalSent - errorCount} success`);
+
+      if (totalSent === 0) {
+        console.warn(`[Zodomus] pushAvailability: 0 requests sent! Room IDs in updates don't match any channel room map entry.`);
+      }
 
       await log?.({
         direction: SyncDirection.OUTBOUND,
@@ -319,6 +426,7 @@ export const zodomusProvider: ChannelManagerProvider = {
     } catch (err) {
       const durationMs = Date.now() - start;
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      console.error(`[Zodomus] pushAvailability EXCEPTION:`, errorMessage);
 
       await log?.({
         direction: SyncDirection.OUTBOUND,
@@ -334,11 +442,10 @@ export const zodomusProvider: ChannelManagerProvider = {
 
   /**
    * Push rates using POST /rates.
-   * Discovers active channels, then pushes each rate update to every channel
-   * that has the corresponding room configured.
-   *
-   * Zodomus expects: { channel_id, property_id, room_id, rate_id,
-   *   date_from, date_to, currency_code, prices: { price } }
+   * Per Zodomus docs:
+   *   { "channelId": "1", "propertyId": "321000", "roomId": "32100001",
+   *     "dateFrom": "2019-12-01", "dateTo": "2019-12-31", "currencyCode": "EUR",
+   *     "rateId": "321000991", "prices": { "price": "145" }, "closed": "0" }
    */
   async pushRates(
     config: CMConfig,
@@ -349,6 +456,8 @@ export const zodomusProvider: ChannelManagerProvider = {
 
     try {
       const channels = await fetchChannels(config);
+      console.log(`[Zodomus] pushRates: ${channels.length} channels found`);
+
       if (channels.length === 0) {
         return { status: SyncStatus.SUCCESS, updatesProcessed: 0 };
       }
@@ -358,22 +467,24 @@ export const zodomusProvider: ChannelManagerProvider = {
       let totalSent = 0;
       let errorCount = 0;
       let lastErrorMsg = '';
+      let firstErrorLogged = false;
 
       for (const update of updates) {
         const channelIds = roomToChannels.get(update.externalRoomTypeId) ?? [];
 
         for (const channelId of channelIds) {
           const body = {
-            channel_id: channelId,
-            property_id: config.hotelId,
-            room_id: update.externalRoomTypeId,
-            rate_id: update.externalRatePlanId,
-            date_from: update.date,
-            date_to: update.date,
-            currency_code: update.currency,
+            channelId: String(channelId),
+            propertyId: config.hotelId,
+            roomId: update.externalRoomTypeId,
+            rateId: update.externalRatePlanId,
+            dateFrom: update.date,
+            dateTo: nextDay(update.date), // Zodomus requires dateTo > dateFrom
+            currencyCode: update.currency,
             prices: {
-              price: update.amount,
+              price: String(update.amount), // Zodomus expects price as string: "145"
             },
+            closed: '0', // Required field per Zodomus docs: 0 = open, 1 = closed
           };
 
           const response = await fetchWithRetry(
@@ -387,16 +498,30 @@ export const zodomusProvider: ChannelManagerProvider = {
 
           totalSent++;
 
-          if (!response.ok) {
+          const text = await response.text();
+          const parsed = safeParseJson(text);
+          if (isZodomusError(parsed)) {
             errorCount++;
-            const responseText = await response.text();
-            lastErrorMsg = `HTTP ${response.status}: ${responseText}`;
+            lastErrorMsg = getZodomusErrorMessage(parsed);
+            if (!firstErrorLogged) {
+              console.error(`[Zodomus] pushRates FIRST ERROR: body=${JSON.stringify(body)} → response=${text}`);
+              firstErrorLogged = true;
+            }
+          }
+
+          if (totalSent % 100 === 0) {
+            console.log(`[Zodomus] pushRates: progress ${totalSent} sent, ${errorCount} errors`);
           }
         }
       }
 
       const durationMs = Date.now() - start;
       const status = errorCount > 0 ? SyncStatus.ERROR : SyncStatus.SUCCESS;
+      console.log(`[Zodomus] pushRates: DONE in ${durationMs}ms — ${totalSent} sent, ${errorCount} errors, ${totalSent - errorCount} success`);
+
+      if (totalSent === 0) {
+        console.warn(`[Zodomus] pushRates: 0 requests sent! Room IDs in updates don't match any channel room map entry.`);
+      }
 
       await log?.({
         direction: SyncDirection.OUTBOUND,
@@ -415,6 +540,7 @@ export const zodomusProvider: ChannelManagerProvider = {
     } catch (err) {
       const durationMs = Date.now() - start;
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      console.error(`[Zodomus] pushRates EXCEPTION:`, errorMessage);
 
       await log?.({
         direction: SyncDirection.OUTBOUND,
@@ -431,7 +557,7 @@ export const zodomusProvider: ChannelManagerProvider = {
   /**
    * Push restrictions using POST /rates.
    * Zodomus includes restrictions in the /rates endpoint via fields like
-   * closed, minimum_stay, maximum_stay, closed_on_arrival, closed_on_departure.
+   * closed, minimumStay, maximumStay, closedOnArrival, closedOnDeparture.
    */
   async pushRestrictions(
     config: CMConfig,
@@ -457,18 +583,18 @@ export const zodomusProvider: ChannelManagerProvider = {
 
         for (const channelId of channelIds) {
           const body: Record<string, unknown> = {
-            channel_id: channelId,
-            property_id: config.hotelId,
-            room_id: update.externalRoomTypeId,
-            rate_id: update.externalRatePlanId,
-            date_from: update.date,
-            date_to: update.date,
+            channelId: String(channelId),
+            propertyId: config.hotelId,
+            roomId: update.externalRoomTypeId,
+            rateId: update.externalRatePlanId,
+            dateFrom: update.date,
+            dateTo: nextDay(update.date), // Zodomus requires dateTo > dateFrom
           };
 
-          if (update.minStay !== undefined) body.minimum_stay = String(update.minStay);
-          if (update.maxStay !== undefined) body.maximum_stay = String(update.maxStay);
-          if (update.closedToArrival !== undefined) body.closed_on_arrival = update.closedToArrival ? '1' : '0';
-          if (update.closedToDeparture !== undefined) body.closed_on_departure = update.closedToDeparture ? '1' : '0';
+          if (update.minStay !== undefined) body.minimumStay = String(update.minStay);
+          if (update.maxStay !== undefined) body.maximumStay = String(update.maxStay);
+          if (update.closedToArrival !== undefined) body.closedOnArrival = update.closedToArrival ? '1' : '0';
+          if (update.closedToDeparture !== undefined) body.closedOnDeparture = update.closedToDeparture ? '1' : '0';
           if (update.stopSell !== undefined) body.closed = update.stopSell ? '1' : '0';
 
           const response = await fetchWithRetry(
@@ -482,10 +608,11 @@ export const zodomusProvider: ChannelManagerProvider = {
 
           totalSent++;
 
-          if (!response.ok) {
+          const text = await response.text();
+          const parsed = safeParseJson(text);
+          if (isZodomusError(parsed)) {
             errorCount++;
-            const responseText = await response.text();
-            lastErrorMsg = `HTTP ${response.status}: ${responseText}`;
+            lastErrorMsg = getZodomusErrorMessage(parsed);
           }
         }
       }
@@ -562,7 +689,7 @@ export const zodomusProvider: ChannelManagerProvider = {
   },
 
   /**
-   * Fetch room types via GET /room-rates?channel_id=X&property_id=Y.
+   * Fetch room types via GET /room-rates?channelId=X&propertyId=Y.
    * First discovers available channels, then fetches rooms for each.
    * Deduplicates rooms by ID across channels.
    */
@@ -597,7 +724,7 @@ export const zodomusProvider: ChannelManagerProvider = {
   },
 
   /**
-   * Fetch rate plans via GET /room-rates?channel_id=X&property_id=Y.
+   * Fetch rate plans via GET /room-rates?channelId=X&propertyId=Y.
    * Rate plans are nested within rooms in the Zodomus API.
    * Deduplicates by room+rate combination across channels.
    */
@@ -635,21 +762,23 @@ export const zodomusProvider: ChannelManagerProvider = {
   },
 
   /**
-   * Provision rooms and rates in Zodomus via the Content API.
-   * Creates rooms (POST /room) and rates (POST /rate) for each active channel.
-   * After provisioning, rooms and rates will appear in GET /room-rates for mapping.
+   * Provision rooms and rates in Zodomus — Standard Channel Manager workflow.
    *
-   * Zodomus Content API models:
-   *   RoomRequest: { channel_id, status, name }
-   *   RateRequest: { channel_id, status, name }
+   * Official Zodomus workflow (from their documentation):
+   *   1. POST /property-activation — activate property on each channel
+   *   2. GET /room-rates — discover rooms & rates Zodomus pre-created
+   *   3. POST /rooms-activation — map/bind rooms + rates to property
+   *   4. POST /property-check — verify property is active and mapped
    *
-   * Responses always include a `status.return_code` — 0 means success,
-   * any other value means an error even if HTTP status is 200.
+   * NOTE: In the standard CM workflow, rooms and rates are created by Zodomus
+   * upon property activation — we do NOT call POST /room or POST /rate.
+   * The ContentItem[] params are used for display purposes only; the actual
+   * rooms/rates come from Zodomus.
    */
   async provisionContent(
     config: CMConfig,
-    rooms: ContentItem[],
-    rates: ContentItem[],
+    _rooms: ContentItem[],
+    _rates: ContentItem[],
   ): Promise<ProvisionResult> {
     try {
       const channels = await fetchChannels(config);
@@ -663,113 +792,164 @@ export const zodomusProvider: ChannelManagerProvider = {
         };
       }
 
-      let roomsCreated = 0;
-      let ratesCreated = 0;
+      // Only provision on active channels (Booking=1, Expedia=2, Airbnb=3)
+      const activeChannelIds = new Set([1, 2, 3]);
+      const supportedChannels = channels.filter((c) => activeChannelIds.has(c.id));
+
+      if (supportedChannels.length === 0) {
+        return {
+          success: false,
+          roomsCreated: 0,
+          ratesCreated: 0,
+          errorMessage: 'No supported channels found. Zodomus currently supports Booking.com (1), Expedia (2), and Airbnb (3).',
+        };
+      }
+
+      let totalRoomsDiscovered = 0;
+      let totalRatesDiscovered = 0;
       const errors: string[] = [];
-      const responses: string[] = [];
+      const log: string[] = [];
 
-      for (const channel of channels) {
-        // Create rooms for this channel
-        for (const room of rooms) {
-          try {
-            const requestBody = {
-              channel_id: channel.id,
-              status: 'New',
-              name: room.name,
-            };
+      for (const channel of supportedChannels) {
+        log.push(`\n=== Channel: ${channel.channel} (id=${channel.id}) ===`);
 
-            const response = await fetchWithRetry(
-              `${baseUrl(config)}/room`,
-              {
-                method: 'POST',
-                headers: buildHeaders(config, 'application/json'),
-                body: JSON.stringify(requestBody),
-              },
-            );
+        // ── Step 1: Activate property on this channel ──
+        try {
+          const activationBody = {
+            channelId: channel.id,
+            propertyId: config.hotelId,
+            priceModelId: '2', // Per Zodomus docs: "2" for standard pricing
+          };
 
-            const responseText = await response.text();
-            responses.push(`POST /room [${channel.channel}] "${room.name}": HTTP ${response.status} → ${responseText}`);
+          const res = await fetchWithRetry(
+            `${baseUrl(config)}/property-activation`,
+            {
+              method: 'POST',
+              headers: buildHeaders(config, 'application/json'),
+              body: JSON.stringify(activationBody),
+            },
+          );
 
-            if (!response.ok) {
-              if (response.status !== 409) {
-                errors.push(`Room "${room.name}" on ${channel.channel}: HTTP ${response.status} ${responseText}`);
-              }
-              continue;
+          const text = await res.text();
+          log.push(`[1] POST /property-activation: HTTP ${res.status} → ${text}`);
+
+          const parsed = safeParseJson(text);
+          if (isZodomusError(parsed)) {
+            const msg = getZodomusErrorMessage(parsed);
+            // "awaiting approval" is OK — it means the activation was submitted
+            if (!msg.toLowerCase().includes('awaiting')) {
+              errors.push(`Property activation on ${channel.channel}: ${msg}`);
             }
-
-            // Check Zodomus status in response body
-            try {
-              const parsed = JSON.parse(responseText) as { status?: ZodomusStatus };
-              if (parsed.status && parsed.status.return_code !== 0) {
-                errors.push(`Room "${room.name}" on ${channel.channel}: ${parsed.status.return_message}`);
-                continue;
-              }
-            } catch {
-              // Response may not be JSON — treat HTTP 200 as success
-            }
-
-            roomsCreated++;
-          } catch (err) {
-            errors.push(`Room "${room.name}": ${err instanceof Error ? err.message : 'Unknown error'}`);
           }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          log.push(`[1] POST /property-activation: ERROR → ${msg}`);
+          errors.push(`Property activation on ${channel.channel}: ${msg}`);
         }
 
-        // Create rates for this channel
-        for (const rate of rates) {
+        // ── Step 2: Discover rooms & rates ──
+        let discoveredRooms: ZodomusRoom[] = [];
+        try {
+          const roomRatesData = await fetchRoomRatesForChannel(config, channel.id);
+          discoveredRooms = roomRatesData.rooms ?? [];
+          log.push(`[2] GET /room-rates: found ${discoveredRooms.length} rooms`);
+
+          for (const dr of discoveredRooms) {
+            const rateNames = (dr.rates ?? []).map((r) => `${r.name} (${r.id})`).join(', ');
+            log.push(`    → Room "${dr.name}" (id=${dr.id}) rates=[${rateNames}]`);
+            totalRoomsDiscovered++;
+            totalRatesDiscovered += (dr.rates ?? []).length;
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          log.push(`[2] GET /room-rates: ERROR → ${msg}`);
+        }
+
+        // ── Step 3: Activate/map rooms with rates ──
+        if (discoveredRooms.length > 0) {
           try {
-            const requestBody = {
-              channel_id: channel.id,
-              status: 'New',
-              name: rate.name,
+            const roomsPayload = discoveredRooms.map((room) => ({
+              roomId: String(room.id),
+              roomName: room.name,
+              quantity: 1,
+              status: 1, // 1 = active
+              rates: (room.rates ?? []).map((r) => String(r.id)),
+            }));
+
+            const activationBody = {
+              channelId: channel.id,
+              propertyId: config.hotelId,
+              rooms: roomsPayload,
             };
 
-            const response = await fetchWithRetry(
-              `${baseUrl(config)}/rate`,
+            const res = await fetchWithRetry(
+              `${baseUrl(config)}/rooms-activation`,
               {
                 method: 'POST',
                 headers: buildHeaders(config, 'application/json'),
-                body: JSON.stringify(requestBody),
+                body: JSON.stringify(activationBody),
               },
             );
 
-            const responseText = await response.text();
-            responses.push(`POST /rate [${channel.channel}] "${rate.name}": HTTP ${response.status} → ${responseText}`);
+            const text = await res.text();
+            log.push(`[3] POST /rooms-activation: HTTP ${res.status} → ${text}`);
 
-            if (!response.ok) {
-              if (response.status !== 409) {
-                errors.push(`Rate "${rate.name}" on ${channel.channel}: HTTP ${response.status} ${responseText}`);
-              }
-              continue;
+            const parsed = safeParseJson(text);
+            if (isZodomusError(parsed)) {
+              errors.push(`Rooms activation on ${channel.channel}: ${getZodomusErrorMessage(parsed)}`);
             }
-
-            // Check Zodomus status in response body
-            try {
-              const parsed = JSON.parse(responseText) as { status?: ZodomusStatus };
-              if (parsed.status && parsed.status.return_code !== 0) {
-                errors.push(`Rate "${rate.name}" on ${channel.channel}: ${parsed.status.return_message}`);
-                continue;
-              }
-            } catch {
-              // Response may not be JSON — treat HTTP 200 as success
-            }
-
-            ratesCreated++;
           } catch (err) {
-            errors.push(`Rate "${rate.name}": ${err instanceof Error ? err.message : 'Unknown error'}`);
+            const msg = err instanceof Error ? err.message : String(err);
+            log.push(`[3] POST /rooms-activation: ERROR → ${msg}`);
+            errors.push(`Rooms activation on ${channel.channel}: ${msg}`);
           }
+        } else {
+          log.push(`[3] POST /rooms-activation: SKIPPED — no rooms discovered`);
+        }
+
+        // ── Step 4: Verify property status ──
+        try {
+          const checkBody = {
+            channelId: String(channel.id),
+            propertyId: config.hotelId,
+          };
+
+          const res = await fetchWithRetry(
+            `${baseUrl(config)}/property-check`,
+            {
+              method: 'POST',
+              headers: buildHeaders(config, 'application/json'),
+              body: JSON.stringify(checkBody),
+            },
+          );
+
+          const text = await res.text();
+          log.push(`[4] POST /property-check: HTTP ${res.status} → ${text}`);
+
+          const parsed = safeParseJson(text) as ZodomusPropertyCheckResponse | null;
+          if (parsed && !isZodomusError(parsed)) {
+            const mapped = (parsed as ZodomusPropertyCheckResponse).mappedProducts ?? [];
+            log.push(`    → ${mapped.length} mapped products`);
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          log.push(`[4] POST /property-check: ERROR → ${msg}`);
+          // Non-fatal — just informational
         }
       }
 
       // Log all raw responses for debugging
-      console.log('[Zodomus] Provision responses:', responses.join('\n'));
+      const details = log.join('\n');
+      console.log('[Zodomus] Provision log:\n', details);
 
       const errorMessage = errors.length > 0 ? errors.join('; ') : undefined;
 
       return {
-        success: errors.length === 0 && (roomsCreated > 0 || ratesCreated > 0),
-        roomsCreated,
-        ratesCreated,
+        success: errors.length === 0 && totalRoomsDiscovered > 0,
+        roomsCreated: totalRoomsDiscovered,
+        ratesCreated: totalRatesDiscovered,
         errorMessage,
+        details,
       };
     } catch (err) {
       return {

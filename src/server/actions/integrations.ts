@@ -329,9 +329,9 @@ export async function triggerFullSync(
       return { success: false, error: 'Integration not found' };
     }
 
-    // Fire-and-forget the full sync
+    // Fire-and-forget the full sync — pass integrationId to bypass isActive check
     channelManagerSyncService
-      .fullSync(orgId, integration.propertyId)
+      .fullSync(orgId, integration.propertyId, integration.id)
       .catch((err) => console.error('[ChannelManager] Full sync failed:', err));
 
     return { success: true, data: undefined };

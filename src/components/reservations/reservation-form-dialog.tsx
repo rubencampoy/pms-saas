@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useTransition } from 'react';
-import { createReservation, checkAvailability } from '@/server/actions/reservations';
+import { useState, useTransition, useEffect, useRef } from 'react';
+import { createReservation, checkAvailability, calculateStayPrice } from '@/server/actions/reservations';
 import { differenceInDays } from 'date-fns';
+import { GuestCombobox } from './guest-combobox';
 
 interface Property {
   id: string;
@@ -29,6 +30,7 @@ export interface ReservationFormDefaults {
   roomTypeId?: string;
   checkInDate?: string;
   checkOutDate?: string;
+  unitId?: string;
 }
 
 interface ReservationFormDialogProps {
@@ -52,6 +54,12 @@ export function ReservationFormDialog({
     totalUnits: number;
     availableUnits: number;
   } | null>(null);
+  const [priceInfo, setPriceInfo] = useState<{
+    ratePlanName: string;
+    autoCalculated: boolean;
+    minStay: number;
+  } | null>(null);
+  const [isCalculating, setIsCalculating] = useState(false);
 
   const [propertyId, setPropertyId] = useState(defaultValues?.propertyId ?? properties[0]?.id ?? '');
   const [roomTypeId, setRoomTypeId] = useState(defaultValues?.roomTypeId ?? '');
@@ -71,17 +79,49 @@ export function ReservationFormDialog({
       ? differenceInDays(new Date(checkOutDate), new Date(checkInDate))
       : 0;
 
+  async function fetchPrice(pId: string, rtId: string, ciDate: string, coDate: string) {
+    const n = differenceInDays(new Date(coDate), new Date(ciDate));
+    if (!rtId || !ciDate || !coDate || n <= 0) return;
+
+    setIsCalculating(true);
+    const priceResult = await calculateStayPrice({
+      propertyId: pId,
+      roomTypeId: rtId,
+      checkInDate: ciDate,
+      checkOutDate: coDate,
+    });
+    setIsCalculating(false);
+
+    if (priceResult.success) {
+      setTotalAmount(priceResult.data.totalAmount);
+      setPriceInfo({
+        ratePlanName: priceResult.data.ratePlanName,
+        autoCalculated: true,
+        minStay: priceResult.data.minStay,
+      });
+    }
+  }
+
+  // Auto-calculate price on mount when defaults are provided (e.g. from calendar)
+  const didAutoCalc = useRef(false);
+  useEffect(() => {
+    if (didAutoCalc.current) return;
+    if (propertyId && roomTypeId && checkInDate && checkOutDate && nights > 0) {
+      didAutoCalc.current = true;
+      fetchPrice(propertyId, roomTypeId, checkInDate, checkOutDate);
+    }
+  }, [propertyId, roomTypeId, checkInDate, checkOutDate, nights]);
+
   async function handleCheckAvailability() {
     if (!roomTypeId || !checkInDate || !checkOutDate || nights <= 0) return;
 
-    const result = await checkAvailability({
-      roomTypeId,
-      checkInDate,
-      checkOutDate,
-    });
+    const [availResult] = await Promise.all([
+      checkAvailability({ roomTypeId, checkInDate, checkOutDate }),
+      !priceInfo ? fetchPrice(propertyId, roomTypeId, checkInDate, checkOutDate) : Promise.resolve(),
+    ]);
 
-    if (result.success) {
-      setAvailability(result.data);
+    if (availResult.success) {
+      setAvailability(availResult.data);
     }
   }
 
@@ -94,6 +134,7 @@ export function ReservationFormDialog({
         propertyId,
         roomTypeId,
         guestId,
+        unitId: defaultValues?.unitId || undefined,
         source: source as 'direct' | 'booking_com' | 'expedia' | 'airbnb' | 'phone' | 'walkin' | 'website',
         checkInDate,
         checkOutDate,
@@ -148,6 +189,8 @@ export function ReservationFormDialog({
                   setPropertyId(e.target.value);
                   setRoomTypeId('');
                   setAvailability(null);
+                  setPriceInfo(null);
+                  setTotalAmount('');
                 }}
                 required
                 className="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-shadow outline-none appearance-none"
@@ -166,8 +209,14 @@ export function ReservationFormDialog({
               <select
                 value={roomTypeId}
                 onChange={(e) => {
-                  setRoomTypeId(e.target.value);
+                  const newRoomTypeId = e.target.value;
+                  setRoomTypeId(newRoomTypeId);
                   setAvailability(null);
+                  setPriceInfo(null);
+                  setTotalAmount('');
+                  if (newRoomTypeId && checkInDate && checkOutDate) {
+                    fetchPrice(propertyId, newRoomTypeId, checkInDate, checkOutDate);
+                  }
                 }}
                 required
                 className="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-shadow outline-none appearance-none"
@@ -187,20 +236,11 @@ export function ReservationFormDialog({
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
               Guest *
             </label>
-            <select
+            <GuestCombobox
+              guests={guests}
               value={guestId}
-              onChange={(e) => setGuestId(e.target.value)}
-              required
-              className="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-shadow outline-none appearance-none"
-            >
-              <option value="">Select guest</option>
-              {guests.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.firstName} {g.lastName}
-                  {g.email ? ` (${g.email})` : ''}
-                </option>
-              ))}
-            </select>
+              onChange={setGuestId}
+            />
           </div>
 
           {/* Dates */}
@@ -213,8 +253,14 @@ export function ReservationFormDialog({
                 type="date"
                 value={checkInDate}
                 onChange={(e) => {
-                  setCheckInDate(e.target.value);
+                  const newCheckIn = e.target.value;
+                  setCheckInDate(newCheckIn);
                   setAvailability(null);
+                  setPriceInfo(null);
+                  setTotalAmount('');
+                  if (roomTypeId && newCheckIn && checkOutDate) {
+                    fetchPrice(propertyId, roomTypeId, newCheckIn, checkOutDate);
+                  }
                 }}
                 required
                 className="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-shadow outline-none"
@@ -228,8 +274,14 @@ export function ReservationFormDialog({
                 type="date"
                 value={checkOutDate}
                 onChange={(e) => {
-                  setCheckOutDate(e.target.value);
+                  const newCheckOut = e.target.value;
+                  setCheckOutDate(newCheckOut);
                   setAvailability(null);
+                  setPriceInfo(null);
+                  setTotalAmount('');
+                  if (roomTypeId && checkInDate && newCheckOut) {
+                    fetchPrice(propertyId, roomTypeId, checkInDate, newCheckOut);
+                  }
                 }}
                 required
                 className="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-shadow outline-none"
@@ -239,29 +291,45 @@ export function ReservationFormDialog({
 
           {/* Nights & Availability */}
           {nights > 0 && (
-            <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-white/5 rounded-lg">
-              <span className="text-sm text-slate-600 dark:text-slate-400">
-                {nights} night{nights !== 1 ? 's' : ''}
-              </span>
-              {availability ? (
-                <span
-                  className={`text-sm font-medium ${
-                    availability.availableUnits > 0
-                      ? 'text-green-600 dark:text-green-400'
-                      : 'text-red-600 dark:text-red-400'
-                  }`}
-                >
-                  {availability.availableUnits} of {availability.totalUnits} available
+            <div className="space-y-2">
+              <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-white/5 rounded-lg">
+                <span className="text-sm text-slate-600 dark:text-slate-400">
+                  {nights} night{nights !== 1 ? 's' : ''}
+                  {priceInfo && priceInfo.minStay > 1 && (
+                    <span className="text-[10px] text-slate-400 ml-1.5">
+                      (min. {priceInfo.minStay})
+                    </span>
+                  )}
                 </span>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleCheckAvailability}
-                  disabled={!roomTypeId}
-                  className="text-xs font-medium text-primary hover:text-primary/80 disabled:text-slate-400"
-                >
-                  Check Availability
-                </button>
+                {availability ? (
+                  <span
+                    className={`text-sm font-medium ${
+                      availability.availableUnits > 0
+                        ? 'text-green-600 dark:text-green-400'
+                        : 'text-red-600 dark:text-red-400'
+                    }`}
+                  >
+                    {availability.availableUnits} of {availability.totalUnits} available
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleCheckAvailability}
+                    disabled={!roomTypeId}
+                    className="text-xs font-medium text-primary hover:text-primary/80 disabled:text-slate-400"
+                  >
+                    Check Availability
+                  </button>
+                )}
+              </div>
+              {priceInfo && priceInfo.minStay > 1 && nights < priceInfo.minStay && (
+                <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                  <span className="material-icons text-sm flex-shrink-0">warning</span>
+                  <span>
+                    Minimum stay is {priceInfo.minStay} night{priceInfo.minStay !== 1 ? 's' : ''} for these dates.
+                    You are booking {nights}. You can still proceed if needed.
+                  </span>
+                </div>
               )}
             </div>
           )}
@@ -318,21 +386,38 @@ export function ReservationFormDialog({
 
           {/* Amount */}
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-              Total Amount (EUR) *
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                Total Amount (EUR) *
+              </label>
+              {isCalculating && (
+                <span className="flex items-center gap-1 text-xs text-slate-400">
+                  <span className="material-icons animate-spin text-xs">progress_activity</span>
+                  Calculating...
+                </span>
+              )}
+            </div>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">
                 &euro;
               </span>
               <input
                 value={totalAmount}
-                onChange={(e) => setTotalAmount(e.target.value)}
+                onChange={(e) => {
+                  setTotalAmount(e.target.value);
+                  if (priceInfo) setPriceInfo({ ...priceInfo, autoCalculated: false });
+                }}
                 required
                 placeholder="0.00"
                 className="w-full pl-8 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-shadow outline-none placeholder:text-slate-400 tabular-nums"
               />
             </div>
+            {priceInfo?.autoCalculated && (
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 flex items-center gap-1">
+                <span className="material-icons text-[10px]">auto_awesome</span>
+                Auto-calculated from rate plan &ldquo;{priceInfo.ratePlanName}&rdquo;
+              </p>
+            )}
           </div>
 
           {/* Special Requests */}

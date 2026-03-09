@@ -149,16 +149,26 @@ export const channelManagerSyncService = {
     }
   },
 
-  async fullSync(organizationId: string, propertyId: string) {
-    const activeIntegrations = await integrationRepo.findActiveByProperty(
-      organizationId,
-      propertyId,
-    );
+  async fullSync(organizationId: string, propertyId: string, integrationId?: string) {
+    let integrations;
+    if (integrationId) {
+      // Direct sync for a specific integration (e.g. manual Full Sync button)
+      const integration = await integrationRepo.findById(organizationId, integrationId);
+      integrations = integration ? [integration] : [];
+    } else {
+      // Automatic sync — only active integrations
+      integrations = await integrationRepo.findActiveByProperty(
+        organizationId,
+        propertyId,
+      );
+    }
+
+    console.log(`[ChannelManager] fullSync: found ${integrations.length} integration(s) for property ${propertyId}`);
 
     const today = format(new Date(), 'yyyy-MM-dd');
     const endDate = format(addDays(new Date(), MAX_SYNC_DAYS), 'yyyy-MM-dd');
 
-    for (const integration of activeIntegrations) {
+    for (const integration of integrations) {
       const provider = getProvider(integration.provider);
       const config = parseCredentials(integration.credentials);
       const log = makeLogCallback(organizationId, integration.id);
@@ -171,6 +181,9 @@ export const channelManagerSyncService = {
         organizationId,
         integration.id,
       );
+
+      console.log(`[ChannelManager] fullSync: ${rtMappings.length} room mappings, ${rpMappings.length} rate mappings`);
+      console.log(`[ChannelManager] fullSync: syncing dates ${today} → ${endDate}`);
 
       // Push availability for all mapped room types
       const availUpdates: AvailabilityUpdate[] = [];
@@ -195,8 +208,17 @@ export const channelManagerSyncService = {
         }
       }
 
+      console.log(`[ChannelManager] fullSync: ${availUpdates.length} availability updates to push`);
       if (availUpdates.length > 0) {
-        await provider.pushAvailability(config, availUpdates, log);
+        // Log a sample of what we're sending
+        console.log(`[ChannelManager] fullSync: sample avail update:`, JSON.stringify(availUpdates[0]));
+        const availResult = await provider.pushAvailability(config, availUpdates, log);
+        console.log(`[ChannelManager] fullSync: availability push result: ${availResult.status}, processed: ${availResult.updatesProcessed}`);
+        if (availResult.errorMessage) {
+          console.error(`[ChannelManager] fullSync: availability error: ${availResult.errorMessage}`);
+        }
+      } else {
+        console.log(`[ChannelManager] fullSync: no availability updates to push (no room mappings?)`);
       }
 
       // Push rates for all mapped rate plans and room types
@@ -224,14 +246,27 @@ export const channelManagerSyncService = {
         }
       }
 
+      console.log(`[ChannelManager] fullSync: ${rateUpdates.length} rate updates to push`);
+
+      let rateStatus = SyncStatus.SUCCESS;
       if (rateUpdates.length > 0) {
-        await provider.pushRates(config, rateUpdates, log);
+        console.log(`[ChannelManager] fullSync: sample rate update:`, JSON.stringify(rateUpdates[0]));
+        const rateResult = await provider.pushRates(config, rateUpdates, log);
+        console.log(`[ChannelManager] fullSync: rates push result: ${rateResult.status}, processed: ${rateResult.updatesProcessed}`);
+        if (rateResult.errorMessage) {
+          console.error(`[ChannelManager] fullSync: rates error: ${rateResult.errorMessage}`);
+        }
+        rateStatus = rateResult.status;
+      } else {
+        console.log(`[ChannelManager] fullSync: no rate updates to push (no rates in DB for this date range)`);
       }
 
+      // Use worst status between availability and rates
+      const finalStatus = rateStatus === SyncStatus.ERROR ? SyncStatus.ERROR : SyncStatus.SUCCESS;
       await integrationRepo.updateLastSync(
         organizationId,
         integration.id,
-        SyncStatus.SUCCESS,
+        finalStatus,
       );
     }
   },

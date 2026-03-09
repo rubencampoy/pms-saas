@@ -145,6 +145,7 @@ export async function bulkSetRates(
     );
 
     revalidatePath(RATES_PATH);
+    revalidatePath('/calendar');
     return { success: true, data: { count: result.length } };
   } catch (error) {
     console.error('bulkSetRates failed:', error);

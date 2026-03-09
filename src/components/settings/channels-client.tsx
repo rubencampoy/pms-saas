@@ -98,12 +98,29 @@ export function ChannelsClient({ propertyIntegrations }: Props) {
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [provisioning, setProvisioning] = useState(false);
-  const [provisionResult, setProvisionResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [provisionResult, setProvisionResult] = useState<{ success: boolean; message: string; details?: string } | null>(null);
+  const [showProvisionDetails, setShowProvisionDetails] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // External entities (from test connection)
-  const [externalRoomTypes, setExternalRoomTypes] = useState<ExternalRoomType[]>([]);
-  const [externalRatePlans, setExternalRatePlans] = useState<ExternalRatePlan[]>([]);
+  // External entities — reconstructed from saved mappings on load, refreshed by Test Connection
+  const [externalRoomTypes, setExternalRoomTypes] = useState<ExternalRoomType[]>(() => {
+    const map = new Map<string, ExternalRoomType>();
+    for (const m of current.roomTypeMappings) {
+      if (m.externalRoomTypeId && !map.has(m.externalRoomTypeId)) {
+        map.set(m.externalRoomTypeId, { id: m.externalRoomTypeId, name: m.externalRoomTypeName || m.externalRoomTypeId });
+      }
+    }
+    return Array.from(map.values());
+  });
+  const [externalRatePlans, setExternalRatePlans] = useState<ExternalRatePlan[]>(() => {
+    const map = new Map<string, ExternalRatePlan>();
+    for (const m of current.ratePlanMappings) {
+      if (m.externalRatePlanId && !map.has(m.externalRatePlanId)) {
+        map.set(m.externalRatePlanId, { id: m.externalRatePlanId, name: m.externalRatePlanName || m.externalRatePlanId, roomTypeId: '' });
+      }
+    }
+    return Array.from(map.values());
+  });
 
   // Mapping state
   const [rtMappings, setRtMappings] = useState<Record<string, { externalId: string; externalName: string }>>(
@@ -149,8 +166,23 @@ export function ChannelsClient({ propertyIntegrations }: Props) {
       setAirbnbWebhookKey(pi.decryptedCredentials?.airbnbWebhookKey ?? '');
       setTestResult(null);
       setMessage(null);
-      setExternalRoomTypes([]);
-      setExternalRatePlans([]);
+
+      // Reconstruct external entities from saved mappings
+      const extRooms = new Map<string, ExternalRoomType>();
+      for (const m of pi.roomTypeMappings) {
+        if (m.externalRoomTypeId && !extRooms.has(m.externalRoomTypeId)) {
+          extRooms.set(m.externalRoomTypeId, { id: m.externalRoomTypeId, name: m.externalRoomTypeName || m.externalRoomTypeId });
+        }
+      }
+      setExternalRoomTypes(Array.from(extRooms.values()));
+
+      const extRates = new Map<string, ExternalRatePlan>();
+      for (const m of pi.ratePlanMappings) {
+        if (m.externalRatePlanId && !extRates.has(m.externalRatePlanId)) {
+          extRates.set(m.externalRatePlanId, { id: m.externalRatePlanId, name: m.externalRatePlanName || m.externalRatePlanId, roomTypeId: '' });
+        }
+      }
+      setExternalRatePlans(Array.from(extRates.values()));
 
       const rtMap: Record<string, { externalId: string; externalName: string }> = {};
       for (const m of pi.roomTypeMappings) {
@@ -297,9 +329,13 @@ export function ChannelsClient({ propertyIntegrations }: Props) {
 
     if (result.success) {
       const data = result.data;
+      const hasErrors = !!data.errorMessage;
       setProvisionResult({
-        success: true,
-        message: t('provisionSuccess', { rooms: data.roomsCreated, rates: data.ratesCreated }),
+        success: !hasErrors,
+        message: hasErrors
+          ? `${t('provisionSuccess', { rooms: data.roomsCreated, rates: data.ratesCreated })} — ${data.errorMessage}`
+          : t('provisionSuccess', { rooms: data.roomsCreated, rates: data.ratesCreated }),
+        details: data.details,
       });
       // After provisioning, re-fetch external entities so dropdowns update
       const creds = buildCredentials();
@@ -735,17 +771,32 @@ export function ChannelsClient({ propertyIntegrations }: Props) {
 
           {/* Provision result message */}
           {provisionResult && (
-            <div
-              className={`mb-4 flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm ${
-                provisionResult.success
-                  ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400'
-                  : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400'
-              }`}
-            >
-              <span className="material-icons text-sm">
-                {provisionResult.success ? 'check_circle' : 'error'}
-              </span>
-              {provisionResult.message}
+            <div className="mb-4">
+              <div
+                className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm ${
+                  provisionResult.success
+                    ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400'
+                    : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400'
+                }`}
+              >
+                <span className="material-icons text-sm">
+                  {provisionResult.success ? 'check_circle' : 'error'}
+                </span>
+                <span className="flex-1">{provisionResult.message}</span>
+                {provisionResult.details && (
+                  <button
+                    onClick={() => setShowProvisionDetails((prev) => !prev)}
+                    className="ml-2 text-xs underline opacity-70 hover:opacity-100"
+                  >
+                    {showProvisionDetails ? t('hideDetails') : t('showDetails')}
+                  </button>
+                )}
+              </div>
+              {showProvisionDetails && provisionResult.details && (
+                <pre className="mt-2 max-h-64 overflow-auto rounded-lg bg-slate-900 text-slate-200 text-xs p-3 font-mono whitespace-pre-wrap">
+                  {provisionResult.details}
+                </pre>
+              )}
             </div>
           )}
 
@@ -902,7 +953,7 @@ export function ChannelsClient({ propertyIntegrations }: Props) {
             <div className="flex items-center gap-2">
               <button
                 onClick={handleFullSync}
-                disabled={syncing || !current.integration.isActive}
+                disabled={syncing}
                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-[#137fec] text-white hover:bg-[#1171d4] disabled:opacity-50 transition-colors"
               >
                 <span className="material-icons text-sm">{syncing ? 'hourglass_top' : 'sync'}</span>

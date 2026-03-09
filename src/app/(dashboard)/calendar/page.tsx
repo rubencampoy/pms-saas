@@ -7,6 +7,7 @@ import { reservationRepo } from '@/server/repositories/reservation.repo';
 import { guestRepo } from '@/server/repositories/guest.repo';
 import { ratePlanRepo } from '@/server/repositories/rate-plan.repo';
 import { rateRepo } from '@/server/repositories/rate.repo';
+import { roomBlockRepo } from '@/server/repositories/room-block.repo';
 import { format, addDays, parseISO, isValid } from 'date-fns';
 import { CalendarClient } from '@/components/calendar/calendar-client';
 import { getSelectedPropertyId } from '@/server/actions/property-switch';
@@ -53,18 +54,19 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
   const startDate = format(addDays(centerDate, -DAYS_BEFORE), 'yyyy-MM-dd');
   const endDate = format(addDays(centerDate, DAYS_AFTER), 'yyyy-MM-dd');
 
-  const [roomTypesList, unitsList, reservationsList, guestsList, ratePlansList] = await Promise.all([
+  const [roomTypesList, unitsList, reservationsList, guestsList, ratePlansList, roomBlocksList] = await Promise.all([
     roomTypeRepo.findByProperty(orgId, activePropertyId),
     unitRepo.findByProperty(orgId, activePropertyId),
     reservationRepo.findByDateRange(orgId, activePropertyId, startDate, endDate),
     guestRepo.findAll(orgId, { limit: 10000 }),
     ratePlanRepo.findByProperty(orgId, activePropertyId),
+    roomBlockRepo.findByPropertyAndDateRange(orgId, activePropertyId, startDate, endDate),
   ]);
 
   // Load rates for all rate plans in the date range — pick the lowest-priority (default) plan's rates
   // If multiple plans exist, we show the first (highest priority) plan's rates in the calendar
   const defaultPlan = ratePlansList[0];
-  let ratesList: { roomTypeId: string; date: string; amount: string }[] = [];
+  let ratesList: { roomTypeId: string; date: string; amount: string; minStay: number }[] = [];
 
   if (defaultPlan) {
     const rawRates = await rateRepo.findByRatePlan(orgId, defaultPlan.id, startDate, endDate);
@@ -72,6 +74,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
       roomTypeId: r.roomTypeId,
       date: r.date,
       amount: r.amount,
+      minStay: r.minStay,
     }));
   }
 
@@ -84,6 +87,8 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
       reservations={reservationsList}
       guests={guestsList}
       rates={ratesList}
+      defaultRatePlanId={defaultPlan?.id ?? null}
+      roomBlocks={roomBlocksList}
       initialStartDate={startDate}
       initialEndDate={endDate}
     />
