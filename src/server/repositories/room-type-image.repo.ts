@@ -3,6 +3,14 @@ import { roomTypeImages } from '@/server/db/schema';
 import { and, eq, asc } from 'drizzle-orm';
 
 export const roomTypeImageRepo = {
+  async findAll(organizationId: string) {
+    return db
+      .select()
+      .from(roomTypeImages)
+      .where(eq(roomTypeImages.organizationId, organizationId))
+      .orderBy(asc(roomTypeImages.sortOrder));
+  },
+
   async findByRoomType(organizationId: string, roomTypeId: string) {
     return db
       .select()

@@ -1,4 +1,5 @@
 import { bookingEngineRepo } from '@/server/repositories/booking-engine.repo';
+import { roomTypeImageRepo } from '@/server/repositories/room-type-image.repo';
 import { guestRepo } from '@/server/repositories/guest.repo';
 import { folioRepo, folioLineItemRepo } from '@/server/repositories/folio.repo';
 import { reservationService } from '@/server/services/reservation.service';
@@ -112,6 +113,9 @@ export const bookingEngineService = {
     // 3. Get settings for display preferences
     const settings = await bookingEngineRepo.findSettings(organizationId, propertyId);
 
+    // 3b. Get all room type images for the organization
+    const allImages = await roomTypeImageRepo.findAll(organizationId);
+
     // 4. Process each room type
     const results: SearchResult[] = [];
 
@@ -180,7 +184,9 @@ export const bookingEngineService = {
         name: rt.name,
         code: rt.code,
         description: rt.description,
-        images: rt.images ?? [],
+        images: allImages
+          .filter((img) => img.roomTypeId === rt.id)
+          .map((img) => img.url),
         amenities: rt.amenities ?? [],
         baseOccupancy: rt.baseOccupancy,
         maxOccupancy: rt.maxOccupancy,

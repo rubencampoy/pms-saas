@@ -98,18 +98,43 @@ export function RoomTypeCard({ result, translations: t, priceFormat }: RoomTypeC
               style={{ backgroundImage: `url('${result.images[imageIndex]}')` }}
             />
             {result.images.length > 1 && (
-              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
-                {result.images.map((_, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => setImageIndex(i)}
-                    className={`w-2 h-2 rounded-full transition-colors ${
-                      i === imageIndex ? 'bg-white' : 'bg-white/50'
-                    }`}
-                  />
-                ))}
-              </div>
+              <>
+                {/* Arrow navigation */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setImageIndex((prev) => (prev === 0 ? result.images.length - 1 : prev - 1));
+                  }}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-full bg-black/40 text-white opacity-0 group-hover:opacity-100 hover:bg-black/60 transition-all backdrop-blur-sm"
+                >
+                  <span className="material-icons text-lg">chevron_left</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setImageIndex((prev) => (prev === result.images.length - 1 ? 0 : prev + 1));
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-full bg-black/40 text-white opacity-0 group-hover:opacity-100 hover:bg-black/60 transition-all backdrop-blur-sm"
+                >
+                  <span className="material-icons text-lg">chevron_right</span>
+                </button>
+
+                {/* Dots */}
+                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+                  {result.images.map((_, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setImageIndex(i)}
+                      className={`w-2 h-2 rounded-full transition-colors ${
+                        i === imageIndex ? 'bg-white' : 'bg-white/50'
+                      }`}
+                    />
+                  ))}
+                </div>
+              </>
             )}
           </>
         ) : (

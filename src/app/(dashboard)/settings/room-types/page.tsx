@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { propertyRepo } from '@/server/repositories/property.repo';
 import { roomTypeRepo } from '@/server/repositories/room-type.repo';
 import { unitRepo } from '@/server/repositories/unit.repo';
+import { roomTypeImageRepo } from '@/server/repositories/room-type-image.repo';
 import { RoomTypesClient } from '@/components/settings/room-types-client';
 
 export default async function RoomTypesPage() {
@@ -11,10 +12,11 @@ export default async function RoomTypesPage() {
 
   const orgId = session.user.organizationId;
 
-  const [propertiesList, allRoomTypes, allUnits] = await Promise.all([
+  const [propertiesList, allRoomTypes, allUnits, allImages] = await Promise.all([
     propertyRepo.findAll(orgId),
     roomTypeRepo.findAll(orgId),
     unitRepo.findAll(orgId),
+    roomTypeImageRepo.findAll(orgId),
   ]);
 
   return (
@@ -22,6 +24,7 @@ export default async function RoomTypesPage() {
       properties={propertiesList}
       roomTypes={allRoomTypes}
       units={allUnits}
+      images={allImages}
     />
   );
 }

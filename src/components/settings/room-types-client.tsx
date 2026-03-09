@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { RoomTypeFormDialog } from '@/components/settings/room-type-form-dialog';
 import { UnitFormDialog } from '@/components/settings/unit-form-dialog';
+import { ImageGallery } from '@/components/room-types/image-gallery';
 import { deleteRoomType } from '@/server/actions/room-types';
 import { deleteUnit } from '@/server/actions/units';
 
@@ -38,10 +39,20 @@ interface Unit {
   notes: string | null;
 }
 
+interface RoomTypeImage {
+  id: string;
+  roomTypeId: string;
+  url: string;
+  alt: string | null;
+  sortOrder: number;
+  isCover: boolean;
+}
+
 interface RoomTypesClientProps {
   properties: Property[];
   roomTypes: RoomType[];
   units: Unit[];
+  images: RoomTypeImage[];
 }
 
 const HOUSEKEEPING_BADGE: Record<string, string> = {
@@ -57,7 +68,7 @@ const STATUS_BADGE: Record<string, string> = {
   out_of_order: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',
 };
 
-export function RoomTypesClient({ properties, roomTypes, units }: RoomTypesClientProps) {
+export function RoomTypesClient({ properties, roomTypes, units, images }: RoomTypesClientProps) {
   const [selectedPropertyId, setSelectedPropertyId] = useState<string>(
     properties[0]?.id ?? '',
   );
@@ -192,6 +203,7 @@ export function RoomTypesClient({ properties, roomTypes, units }: RoomTypesClien
                     key={rt.id}
                     roomType={rt}
                     units={rtUnits}
+                    images={images.filter((img) => img.roomTypeId === rt.id)}
                     isExpanded={isExpanded}
                     isPending={isPending}
                     onToggleExpand={() => setExpandedRoomType(isExpanded ? null : rt.id)}
@@ -235,6 +247,7 @@ export function RoomTypesClient({ properties, roomTypes, units }: RoomTypesClien
 interface RoomTypeRowProps {
   roomType: RoomType;
   units: Unit[];
+  images: RoomTypeImage[];
   isExpanded: boolean;
   isPending: boolean;
   onToggleExpand: () => void;
@@ -248,6 +261,7 @@ interface RoomTypeRowProps {
 function RoomTypeRow({
   roomType,
   units: rtUnits,
+  images: rtImages,
   isExpanded,
   isPending,
   onToggleExpand,
@@ -425,6 +439,14 @@ function RoomTypeRow({
                     ))}
                   </div>
                 )}
+
+                {/* Image Gallery */}
+                <div className="mt-4">
+                  <ImageGallery
+                    roomTypeId={roomType.id}
+                    initialImages={rtImages}
+                  />
+                </div>
               </div>
             </div>
           </td>
