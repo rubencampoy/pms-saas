@@ -16,3 +16,4 @@ export * from './folios';
 export * from './folio-line-items';
 export * from './payments';
 export * from './housekeeping-tasks';
+export * from './room-type-images';
