@@ -66,6 +66,7 @@ export const ratePlanMappings = pgTable(
     ratePlanId: uuid('rate_plan_id').notNull().references(() => ratePlans.id),
     externalRatePlanId: varchar('external_rate_plan_id', { length: 100 }).notNull(),
     externalRatePlanName: varchar('external_rate_plan_name', { length: 255 }).notNull(),
+    externalRoomTypeId: varchar('external_room_type_id', { length: 100 }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

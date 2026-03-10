@@ -184,6 +184,7 @@ export const ratePlanMappingRepo = {
       ratePlanId: string;
       externalRatePlanId: string;
       externalRatePlanName: string;
+      externalRoomTypeId?: string;
     }[],
   ) {
     if (mappings.length === 0) return [];

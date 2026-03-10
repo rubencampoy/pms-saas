@@ -22,6 +22,7 @@ import {
   channelManagerLogRepo,
 } from '@/server/repositories/integration.repo';
 import { channelManagerSyncService } from '@/server/services/channel-manager-sync.service';
+import { unitRepo } from '@/server/repositories/unit.repo';
 import type { ActionResult } from '@/types/actions';
 import type { CreateIntegrationInput, UpdateIntegrationInput, ToggleIntegrationInput, RoomTypeMappingInput, RatePlanMappingInput, TriggerSyncInput, IntegrationLogsInput } from '@/lib/validators/integrations';
 import type { CMConfig, ExternalRoomType, ExternalRatePlan, ProvisionResult } from '@/lib/channel-manager/types';
@@ -376,7 +377,7 @@ export async function getIntegrationLogs(
 
 export async function provisionChannelContent(
   integrationId: string,
-  rooms: { name: string; code: string }[],
+  rooms: { id: string; name: string; code: string }[],
   rates: { name: string; code: string }[],
 ): Promise<ActionResult<ProvisionResult>> {
   try {
@@ -401,7 +402,15 @@ export async function provisionChannelContent(
 
     const config = JSON.parse(decrypt(integration.credentials)) as CMConfig;
 
-    const result = await provider.provisionContent(config, rooms, rates);
+    // Count units per room type to set correct quantity in channel manager
+    const roomsWithUnits = await Promise.all(
+      rooms.map(async (room) => {
+        const unitCount = await unitRepo.countByRoomType(orgId, room.id);
+        return { name: room.name, code: room.code, units: unitCount };
+      }),
+    );
+
+    const result = await provider.provisionContent(config, roomsWithUnits, rates);
 
     // After provisioning, log the result
     await channelManagerLogRepo.create(orgId, {

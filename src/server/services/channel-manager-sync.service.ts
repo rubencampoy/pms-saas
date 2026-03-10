@@ -115,10 +115,13 @@ export const channelManagerSyncService = {
       const rpMapping = rpMappings.find((m) => m.ratePlanId === ratePlanId);
       if (!rpMapping) continue;
 
-      // For each mapped room type, fetch rates and build updates
       const updates: RateUpdate[] = [];
 
-      for (const rtMapping of rtMappings) {
+      if (rpMapping.externalRoomTypeId) {
+        // Use the specific room type this rate plan belongs to
+        const rtMapping = rtMappings.find((m) => m.externalRoomTypeId === rpMapping.externalRoomTypeId);
+        if (!rtMapping) continue;
+
         const dbRates = await rateRepo.findByRatePlanAndRoomType(
           organizationId,
           ratePlanId,
@@ -129,12 +132,33 @@ export const channelManagerSyncService = {
 
         for (const rate of dbRates) {
           updates.push({
-            externalRoomTypeId: rtMapping.externalRoomTypeId,
+            externalRoomTypeId: rpMapping.externalRoomTypeId,
             externalRatePlanId: rpMapping.externalRatePlanId,
             date: rate.date,
             amount: rate.amount,
             currency: rate.currency,
           });
+        }
+      } else {
+        // Legacy fallback: push to all room types
+        for (const rtMapping of rtMappings) {
+          const dbRates = await rateRepo.findByRatePlanAndRoomType(
+            organizationId,
+            ratePlanId,
+            rtMapping.roomTypeId,
+            dateFrom,
+            dateTo,
+          );
+
+          for (const rate of dbRates) {
+            updates.push({
+              externalRoomTypeId: rtMapping.externalRoomTypeId,
+              externalRatePlanId: rpMapping.externalRatePlanId,
+              date: rate.date,
+              amount: rate.amount,
+              currency: rate.currency,
+            });
+          }
         }
       }
 
@@ -208,6 +232,7 @@ export const channelManagerSyncService = {
         }
       }
 
+      let availStatus = SyncStatus.SUCCESS;
       console.log(`[ChannelManager] fullSync: ${availUpdates.length} availability updates to push`);
       if (availUpdates.length > 0) {
         // Log a sample of what we're sending
@@ -217,31 +242,69 @@ export const channelManagerSyncService = {
         if (availResult.errorMessage) {
           console.error(`[ChannelManager] fullSync: availability error: ${availResult.errorMessage}`);
         }
+        availStatus = availResult.status;
       } else {
         console.log(`[ChannelManager] fullSync: no availability updates to push (no room mappings?)`);
       }
 
-      // Push rates for all mapped rate plans and room types
+      // Push rates only for valid room-rate combinations.
+      // Each rate plan mapping stores which external room type it belongs to.
+      // Only push rates where the external room type matches.
       const rateUpdates: RateUpdate[] = [];
 
+      // Build a lookup: externalRoomTypeId → local roomTypeId
+      const extRoomToLocal = new Map<string, string>();
+      for (const rtMapping of rtMappings) {
+        extRoomToLocal.set(rtMapping.externalRoomTypeId, rtMapping.roomTypeId);
+      }
+
       for (const rpMapping of rpMappings) {
-        for (const rtMapping of rtMappings) {
+        // If the rate plan has an associated external room type, only push to that room
+        if (rpMapping.externalRoomTypeId) {
+          const localRoomTypeId = extRoomToLocal.get(rpMapping.externalRoomTypeId);
+          if (!localRoomTypeId) {
+            console.warn(`[ChannelManager] fullSync: rate plan ${rpMapping.externalRatePlanId} → external room ${rpMapping.externalRoomTypeId} has no local room mapping, skipping`);
+            continue;
+          }
+
           const dbRates = await rateRepo.findByRatePlanAndRoomType(
             organizationId,
             rpMapping.ratePlanId,
-            rtMapping.roomTypeId,
+            localRoomTypeId,
             today,
             endDate,
           );
 
           for (const rate of dbRates) {
             rateUpdates.push({
-              externalRoomTypeId: rtMapping.externalRoomTypeId,
+              externalRoomTypeId: rpMapping.externalRoomTypeId,
               externalRatePlanId: rpMapping.externalRatePlanId,
               date: rate.date,
               amount: rate.amount,
               currency: rate.currency,
             });
+          }
+        } else {
+          // Legacy: no externalRoomTypeId stored — fallback to all room types
+          // (will be fixed once user re-saves mappings)
+          for (const rtMapping of rtMappings) {
+            const dbRates = await rateRepo.findByRatePlanAndRoomType(
+              organizationId,
+              rpMapping.ratePlanId,
+              rtMapping.roomTypeId,
+              today,
+              endDate,
+            );
+
+            for (const rate of dbRates) {
+              rateUpdates.push({
+                externalRoomTypeId: rtMapping.externalRoomTypeId,
+                externalRatePlanId: rpMapping.externalRatePlanId,
+                date: rate.date,
+                amount: rate.amount,
+                currency: rate.currency,
+              });
+            }
           }
         }
       }
@@ -262,7 +325,9 @@ export const channelManagerSyncService = {
       }
 
       // Use worst status between availability and rates
-      const finalStatus = rateStatus === SyncStatus.ERROR ? SyncStatus.ERROR : SyncStatus.SUCCESS;
+      const finalStatus = (availStatus === SyncStatus.ERROR || rateStatus === SyncStatus.ERROR)
+        ? SyncStatus.ERROR
+        : SyncStatus.SUCCESS;
       await integrationRepo.updateLastSync(
         organizationId,
         integration.id,

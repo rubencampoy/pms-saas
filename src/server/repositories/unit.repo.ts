@@ -1,6 +1,6 @@
 import { db } from '@/server/db';
 import { units } from '@/server/db/schema';
-import { and, eq, asc } from 'drizzle-orm';
+import { and, eq, asc, sql } from 'drizzle-orm';
 
 export const unitRepo = {
   async findAll(organizationId: string) {
@@ -87,6 +87,20 @@ export const unitRepo = {
       )
       .returning();
     return unit;
+  },
+
+  async countByRoomType(organizationId: string, roomTypeId: string): Promise<number> {
+    const [result] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(units)
+      .where(
+        and(
+          eq(units.organizationId, organizationId),
+          eq(units.roomTypeId, roomTypeId),
+          eq(units.isActive, true),
+        ),
+      );
+    return result?.count ?? 0;
   },
 
   async delete(organizationId: string, id: string) {

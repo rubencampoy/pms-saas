@@ -240,35 +240,191 @@ async function fetchRoomRatesForChannel(
 }
 
 /**
- * Build a lookup of which room IDs exist on which channels.
- * This avoids pushing to channels that don't have a given room.
+ * Extended channel room info: which rooms exist on which channels,
+ * which rates each room has per channel, and room details for rooms-activation.
  */
-async function buildChannelRoomMap(
+interface ChannelRoomInfo {
+  roomToChannels: Map<string, number[]>;
+  /** channelId → roomId → set of rateIds */
+  channelRoomRates: Map<number, Map<string, Set<string>>>;
+  /** roomId → { name, rateIds } for rooms-activation payload */
+  roomDetails: Map<string, { name: string; rateIds: string[] }>;
+}
+
+/**
+ * Build a lookup of which room IDs exist on which channels,
+ * plus which rate IDs belong to which rooms on each channel.
+ */
+async function buildChannelRoomInfo(
   config: CMConfig,
   channels: ZodomusChannel[],
-): Promise<Map<string, number[]>> {
+): Promise<ChannelRoomInfo> {
   const roomToChannels = new Map<string, number[]>();
+  const channelRoomRates = new Map<number, Map<string, Set<string>>>();
+  const roomDetails = new Map<string, { name: string; rateIds: string[] }>();
 
   for (const channel of channels) {
     try {
       const data = await fetchRoomRatesForChannel(config, channel.id);
       const rooms = data.rooms ?? [];
-      console.log(`[Zodomus] buildChannelRoomMap: channel ${channel.id} (${channel.channel}) → ${rooms.length} rooms`);
+      console.log(`[Zodomus] buildChannelRoomInfo: channel ${channel.id} (${channel.channel}) → ${rooms.length} rooms`);
+
+      const roomRates = new Map<string, Set<string>>();
+
       for (const room of rooms) {
         const roomId = String(room.id);
+        const rateIds = (room.rates ?? []).map((r) => String(r.id));
+
+        // roomToChannels
         const existing = roomToChannels.get(roomId) ?? [];
         existing.push(channel.id);
         roomToChannels.set(roomId, existing);
+
+        // channelRoomRates
+        roomRates.set(roomId, new Set(rateIds));
+
+        // roomDetails (keep first occurrence)
+        if (!roomDetails.has(roomId)) {
+          roomDetails.set(roomId, { name: room.name, rateIds });
+        }
       }
+
+      channelRoomRates.set(channel.id, roomRates);
     } catch (err) {
-      // Channel may not have this property configured — skip
-      console.warn(`[Zodomus] buildChannelRoomMap: channel ${channel.id} (${channel.channel}) FAILED:`, err instanceof Error ? err.message : err);
+      console.warn(`[Zodomus] buildChannelRoomInfo: channel ${channel.id} (${channel.channel}) FAILED:`, err instanceof Error ? err.message : err);
       continue;
     }
   }
 
-  console.log(`[Zodomus] buildChannelRoomMap: final map has ${roomToChannels.size} rooms →`, Object.fromEntries(roomToChannels));
-  return roomToChannels;
+  console.log(`[Zodomus] buildChannelRoomInfo: final map has ${roomToChannels.size} rooms →`, Object.fromEntries(roomToChannels));
+  return { roomToChannels, channelRoomRates, roomDetails };
+}
+
+/** Max concurrent HTTP requests to Zodomus */
+const CONCURRENCY = 5;
+
+/**
+ * Run async tasks with limited concurrency.
+ * Returns results in the same order as the input.
+ */
+async function runWithConcurrency<T>(
+  tasks: (() => Promise<T>)[],
+  concurrency: number,
+): Promise<T[]> {
+  const results: T[] = new Array(tasks.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < tasks.length) {
+      const idx = nextIndex++;
+      results[idx] = await tasks[idx]!();
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(concurrency, tasks.length) }, () => worker());
+  await Promise.all(workers);
+  return results;
+}
+
+/**
+ * Group consecutive availability updates by (roomId, availability) into date ranges.
+ * For example, if room 101 has 2 available from Mar 1-5 and 1 available from Mar 6-8,
+ * this produces two batches: {dateFrom: Mar 1, dateTo: Mar 6, avail: 2} and
+ * {dateFrom: Mar 6, dateTo: Mar 9, avail: 1}.
+ */
+interface AvailBatch {
+  externalRoomTypeId: string;
+  dateFrom: string;
+  dateTo: string;
+  available: number;
+}
+
+function batchAvailabilityUpdates(updates: AvailabilityUpdate[]): AvailBatch[] {
+  // Sort by room, then date
+  const sorted = [...updates].sort((a, b) => {
+    if (a.externalRoomTypeId !== b.externalRoomTypeId) {
+      return a.externalRoomTypeId.localeCompare(b.externalRoomTypeId);
+    }
+    return a.date.localeCompare(b.date);
+  });
+
+  const batches: AvailBatch[] = [];
+  let current: AvailBatch | null = null;
+
+  for (const update of sorted) {
+    if (
+      current &&
+      current.externalRoomTypeId === update.externalRoomTypeId &&
+      current.available === update.available &&
+      // Check consecutive: dateTo of current batch == update.date
+      current.dateTo === update.date
+    ) {
+      // Extend the range
+      current.dateTo = nextDay(update.date);
+    } else {
+      // Start a new batch
+      if (current) batches.push(current);
+      current = {
+        externalRoomTypeId: update.externalRoomTypeId,
+        dateFrom: update.date,
+        dateTo: nextDay(update.date),
+        available: update.available,
+      };
+    }
+  }
+
+  if (current) batches.push(current);
+  return batches;
+}
+
+/**
+ * Group consecutive rate updates by (roomId, rateId, amount, currency) into date ranges.
+ */
+interface RateBatch {
+  externalRoomTypeId: string;
+  externalRatePlanId: string;
+  dateFrom: string;
+  dateTo: string;
+  amount: string;
+  currency: string;
+}
+
+function batchRateUpdates(updates: RateUpdate[]): RateBatch[] {
+  const sorted = [...updates].sort((a, b) => {
+    if (a.externalRoomTypeId !== b.externalRoomTypeId) return a.externalRoomTypeId.localeCompare(b.externalRoomTypeId);
+    if (a.externalRatePlanId !== b.externalRatePlanId) return a.externalRatePlanId.localeCompare(b.externalRatePlanId);
+    return a.date.localeCompare(b.date);
+  });
+
+  const batches: RateBatch[] = [];
+  let current: RateBatch | null = null;
+
+  for (const update of sorted) {
+    const amountStr = String(update.amount);
+    if (
+      current &&
+      current.externalRoomTypeId === update.externalRoomTypeId &&
+      current.externalRatePlanId === update.externalRatePlanId &&
+      current.amount === amountStr &&
+      current.currency === update.currency &&
+      current.dateTo === update.date
+    ) {
+      current.dateTo = nextDay(update.date);
+    } else {
+      if (current) batches.push(current);
+      current = {
+        externalRoomTypeId: update.externalRoomTypeId,
+        externalRatePlanId: update.externalRatePlanId,
+        dateFrom: update.date,
+        dateTo: nextDay(update.date),
+        amount: amountStr,
+        currency: update.currency,
+      };
+    }
+  }
+
+  if (current) batches.push(current);
+  return batches;
 }
 
 // ── Provider implementation ──
@@ -342,78 +498,119 @@ export const zodomusProvider: ChannelManagerProvider = {
         return { status: SyncStatus.SUCCESS, updatesProcessed: 0 };
       }
 
-      // Discover which rooms exist on which channels
-      const roomToChannels = await buildChannelRoomMap(config, channels);
+      const roomInfo = await buildChannelRoomInfo(config, channels);
 
-      // Log which external room IDs we're trying to push vs what's in the map
-      const uniqueRoomIds = new Set(updates.map(u => u.externalRoomTypeId));
-      console.log(`[Zodomus] pushAvailability: updates reference ${uniqueRoomIds.size} unique room IDs: ${Array.from(uniqueRoomIds).join(', ')}`);
-      for (const roomId of uniqueRoomIds) {
-        const chIds = roomToChannels.get(roomId);
-        console.log(`[Zodomus] pushAvailability: room ${roomId} → channels: ${chIds ? chIds.join(', ') : 'NOT FOUND IN MAP'}`);
+      // ── Auto-update room quantities in Zodomus before pushing ──
+      // Compute max availability we'll send per room, then call rooms-activation
+      // to declare that quantity. This prevents "availability higher than declared" errors.
+      const maxAvailPerRoom = new Map<string, number>();
+      for (const update of updates) {
+        const cur = maxAvailPerRoom.get(update.externalRoomTypeId) ?? 0;
+        maxAvailPerRoom.set(update.externalRoomTypeId, Math.max(cur, update.available));
       }
+
+      for (const channel of channels) {
+        const roomRates = roomInfo.channelRoomRates.get(channel.id);
+        if (!roomRates || roomRates.size === 0) continue;
+
+        const roomsPayload: { roomId: string; roomName: string; quantity: number; status: number; rates: string[] }[] = [];
+        for (const [roomId, rateIds] of roomRates) {
+          const details = roomInfo.roomDetails.get(roomId);
+          const maxAvail = maxAvailPerRoom.get(roomId) ?? 1;
+          roomsPayload.push({
+            roomId,
+            roomName: details?.name ?? roomId,
+            quantity: maxAvail,
+            status: 1,
+            rates: Array.from(rateIds),
+          });
+        }
+
+        try {
+          await fetchWithRetry(`${baseUrl(config)}/rooms-activation`, {
+            method: 'POST',
+            headers: buildHeaders(config, 'application/json'),
+            body: JSON.stringify({
+              channelId: channel.id,
+              propertyId: config.hotelId,
+              rooms: roomsPayload,
+            }),
+          });
+          console.log(`[Zodomus] pushAvailability: updated room quantities on channel ${channel.id}: ${roomsPayload.map(r => `${r.roomId}=${r.quantity}`).join(', ')}`);
+        } catch (err) {
+          console.warn(`[Zodomus] pushAvailability: rooms-activation failed on channel ${channel.id}:`, err instanceof Error ? err.message : err);
+        }
+      }
+
+      // Batch consecutive dates with same availability into ranges
+      const batches = batchAvailabilityUpdates(updates);
+      console.log(`[Zodomus] pushAvailability: ${updates.length} updates batched into ${batches.length} date ranges`);
 
       let totalSent = 0;
       let errorCount = 0;
       let lastErrorMsg = '';
       let firstErrorLogged = false;
 
-      for (const update of updates) {
-        const channelIds = roomToChannels.get(update.externalRoomTypeId) ?? [];
+      // Build all request tasks, then run with concurrency
+      const tasks: (() => Promise<void>)[] = [];
+
+      for (const batch of batches) {
+        const channelIds = roomInfo.roomToChannels.get(batch.externalRoomTypeId) ?? [];
 
         for (const channelId of channelIds) {
           const body = {
             channelId: String(channelId),
             propertyId: config.hotelId,
-            roomId: update.externalRoomTypeId,
-            dateFrom: update.date,
-            dateTo: nextDay(update.date), // Zodomus requires dateTo > dateFrom
-            availability: update.available,
+            roomId: batch.externalRoomTypeId,
+            dateFrom: batch.dateFrom,
+            dateTo: batch.dateTo,
+            availability: batch.available,
           };
 
-          const response = await fetchWithRetry(
-            `${baseUrl(config)}/availability`,
-            {
-              method: 'POST',
-              headers: buildHeaders(config, 'application/json'),
-              body: JSON.stringify(body),
-            },
-          );
+          tasks.push(async () => {
+            const response = await fetchWithRetry(
+              `${baseUrl(config)}/availability`,
+              {
+                method: 'POST',
+                headers: buildHeaders(config, 'application/json'),
+                body: JSON.stringify(body),
+              },
+            );
 
-          totalSent++;
-
-          const text = await response.text();
-          const parsed = safeParseJson(text);
-          if (isZodomusError(parsed)) {
-            errorCount++;
-            lastErrorMsg = getZodomusErrorMessage(parsed);
-            // Log first few errors for debugging
-            if (!firstErrorLogged) {
-              console.error(`[Zodomus] pushAvailability FIRST ERROR: body=${JSON.stringify(body)} → response=${text}`);
-              firstErrorLogged = true;
+            totalSent++;
+            const text = await response.text();
+            const parsed = safeParseJson(text);
+            if (isZodomusError(parsed)) {
+              errorCount++;
+              lastErrorMsg = getZodomusErrorMessage(parsed);
+              if (!firstErrorLogged) {
+                console.error(`[Zodomus] pushAvailability FIRST ERROR: body=${JSON.stringify(body)} → response=${text}`);
+                firstErrorLogged = true;
+              }
             }
-          }
 
-          // Log progress every 100 requests
-          if (totalSent % 100 === 0) {
-            console.log(`[Zodomus] pushAvailability: progress ${totalSent} sent, ${errorCount} errors`);
-          }
+            if (totalSent % 100 === 0) {
+              console.log(`[Zodomus] pushAvailability: progress ${totalSent} sent, ${errorCount} errors`);
+            }
+          });
         }
+      }
+
+      if (tasks.length === 0) {
+        console.warn(`[Zodomus] pushAvailability: 0 requests to send! Room IDs in updates don't match any channel room map entry.`);
+      } else {
+        await runWithConcurrency(tasks, CONCURRENCY);
       }
 
       const durationMs = Date.now() - start;
       const status = errorCount > 0 ? SyncStatus.ERROR : SyncStatus.SUCCESS;
       console.log(`[Zodomus] pushAvailability: DONE in ${durationMs}ms — ${totalSent} sent, ${errorCount} errors, ${totalSent - errorCount} success`);
 
-      if (totalSent === 0) {
-        console.warn(`[Zodomus] pushAvailability: 0 requests sent! Room IDs in updates don't match any channel room map entry.`);
-      }
-
       await log?.({
         direction: SyncDirection.OUTBOUND,
         action: SyncAction.PUSH_AVAILABILITY,
         status,
-        request: JSON.stringify({ updatesCount: updates.length, channelsCount: channels.length }),
+        request: JSON.stringify({ updatesCount: updates.length, batchesCount: batches.length, channelsCount: channels.length }),
         errorMessage: errorCount > 0 ? `${errorCount}/${totalSent} failed: ${lastErrorMsg}` : undefined,
         durationMs,
       });
@@ -462,72 +659,94 @@ export const zodomusProvider: ChannelManagerProvider = {
         return { status: SyncStatus.SUCCESS, updatesProcessed: 0 };
       }
 
-      const roomToChannels = await buildChannelRoomMap(config, channels);
+      const roomInfo = await buildChannelRoomInfo(config, channels);
+
+      // Batch consecutive dates with same rate into ranges
+      const batches = batchRateUpdates(updates);
+      console.log(`[Zodomus] pushRates: ${updates.length} updates batched into ${batches.length} date ranges`);
 
       let totalSent = 0;
       let errorCount = 0;
+      let skippedCount = 0;
       let lastErrorMsg = '';
       let firstErrorLogged = false;
 
-      for (const update of updates) {
-        const channelIds = roomToChannels.get(update.externalRoomTypeId) ?? [];
+      const tasks: (() => Promise<void>)[] = [];
+
+      for (const batch of batches) {
+        const channelIds = roomInfo.roomToChannels.get(batch.externalRoomTypeId) ?? [];
 
         for (const channelId of channelIds) {
+          // Only send if this rate actually belongs to this room on this channel.
+          // Zodomus rejects "Invalid room - rate id" for mismatched combinations.
+          const validRates = roomInfo.channelRoomRates.get(channelId)?.get(batch.externalRoomTypeId);
+          if (validRates && !validRates.has(batch.externalRatePlanId)) {
+            skippedCount++;
+            continue;
+          }
+
           const body = {
             channelId: String(channelId),
             propertyId: config.hotelId,
-            roomId: update.externalRoomTypeId,
-            rateId: update.externalRatePlanId,
-            dateFrom: update.date,
-            dateTo: nextDay(update.date), // Zodomus requires dateTo > dateFrom
-            currencyCode: update.currency,
+            roomId: batch.externalRoomTypeId,
+            rateId: batch.externalRatePlanId,
+            dateFrom: batch.dateFrom,
+            dateTo: batch.dateTo,
+            currencyCode: batch.currency,
             prices: {
-              price: String(update.amount), // Zodomus expects price as string: "145"
+              price: batch.amount,
             },
-            closed: '0', // Required field per Zodomus docs: 0 = open, 1 = closed
+            closed: '0',
           };
 
-          const response = await fetchWithRetry(
-            `${baseUrl(config)}/rates`,
-            {
-              method: 'POST',
-              headers: buildHeaders(config, 'application/json'),
-              body: JSON.stringify(body),
-            },
-          );
+          tasks.push(async () => {
+            const response = await fetchWithRetry(
+              `${baseUrl(config)}/rates`,
+              {
+                method: 'POST',
+                headers: buildHeaders(config, 'application/json'),
+                body: JSON.stringify(body),
+              },
+            );
 
-          totalSent++;
-
-          const text = await response.text();
-          const parsed = safeParseJson(text);
-          if (isZodomusError(parsed)) {
-            errorCount++;
-            lastErrorMsg = getZodomusErrorMessage(parsed);
-            if (!firstErrorLogged) {
-              console.error(`[Zodomus] pushRates FIRST ERROR: body=${JSON.stringify(body)} → response=${text}`);
-              firstErrorLogged = true;
+            totalSent++;
+            const text = await response.text();
+            const parsed = safeParseJson(text);
+            if (isZodomusError(parsed)) {
+              errorCount++;
+              lastErrorMsg = getZodomusErrorMessage(parsed);
+              if (!firstErrorLogged) {
+                console.error(`[Zodomus] pushRates FIRST ERROR: body=${JSON.stringify(body)} → response=${text}`);
+                firstErrorLogged = true;
+              }
             }
-          }
 
-          if (totalSent % 100 === 0) {
-            console.log(`[Zodomus] pushRates: progress ${totalSent} sent, ${errorCount} errors`);
-          }
+            if (totalSent % 100 === 0) {
+              console.log(`[Zodomus] pushRates: progress ${totalSent} sent, ${errorCount} errors`);
+            }
+          });
         }
+      }
+
+      if (skippedCount > 0) {
+        console.log(`[Zodomus] pushRates: skipped ${skippedCount} invalid room-rate combinations`);
+      }
+
+      if (tasks.length === 0) {
+        console.warn(`[Zodomus] pushRates: 0 requests to send! Room IDs in updates don't match any channel room map entry.`);
+      } else {
+        await runWithConcurrency(tasks, CONCURRENCY);
       }
 
       const durationMs = Date.now() - start;
       const status = errorCount > 0 ? SyncStatus.ERROR : SyncStatus.SUCCESS;
-      console.log(`[Zodomus] pushRates: DONE in ${durationMs}ms — ${totalSent} sent, ${errorCount} errors, ${totalSent - errorCount} success`);
-
-      if (totalSent === 0) {
-        console.warn(`[Zodomus] pushRates: 0 requests sent! Room IDs in updates don't match any channel room map entry.`);
-      }
+      console.log(`[Zodomus] pushRates: DONE in ${durationMs}ms — ${totalSent} sent, ${errorCount} errors, ${totalSent - errorCount} success, ${skippedCount} skipped`);
 
       await log?.({
         direction: SyncDirection.OUTBOUND,
         action: SyncAction.PUSH_RATES,
         status,
-        request: JSON.stringify({ updatesCount: updates.length, channelsCount: channels.length }),
+        request: JSON.stringify({ updatesCount: updates.length, batchesCount: batches.length, channelsCount: channels.length }),
         errorMessage: errorCount > 0 ? `${errorCount}/${totalSent} failed: ${lastErrorMsg}` : undefined,
         durationMs,
       });
@@ -572,14 +791,14 @@ export const zodomusProvider: ChannelManagerProvider = {
         return { status: SyncStatus.SUCCESS, updatesProcessed: 0 };
       }
 
-      const roomToChannels = await buildChannelRoomMap(config, channels);
+      const roomInfo = await buildChannelRoomInfo(config, channels);
 
       let totalSent = 0;
       let errorCount = 0;
       let lastErrorMsg = '';
 
       for (const update of updates) {
-        const channelIds = roomToChannels.get(update.externalRoomTypeId) ?? [];
+        const channelIds = roomInfo.roomToChannels.get(update.externalRoomTypeId) ?? [];
 
         for (const channelId of channelIds) {
           const body: Record<string, unknown> = {
@@ -777,7 +996,7 @@ export const zodomusProvider: ChannelManagerProvider = {
    */
   async provisionContent(
     config: CMConfig,
-    _rooms: ContentItem[],
+    localRooms: ContentItem[],
     _rates: ContentItem[],
   ): Promise<ProvisionResult> {
     try {
@@ -868,13 +1087,27 @@ export const zodomusProvider: ChannelManagerProvider = {
         // ── Step 3: Activate/map rooms with rates ──
         if (discoveredRooms.length > 0) {
           try {
-            const roomsPayload = discoveredRooms.map((room) => ({
-              roomId: String(room.id),
-              roomName: room.name,
-              quantity: 1,
-              status: 1, // 1 = active
-              rates: (room.rates ?? []).map((r) => String(r.id)),
-            }));
+            // Match discovered rooms to local rooms by name to get correct unit quantity.
+            // Build a name→units lookup (case-insensitive) from local rooms.
+            const nameToUnits = new Map<string, number>();
+            for (const lr of localRooms) {
+              if (lr.units !== undefined) {
+                nameToUnits.set(lr.name.toLowerCase(), lr.units);
+              }
+            }
+            // Default quantity = max units across all local rooms (safe fallback)
+            const maxUnits = localRooms.reduce((max, lr) => Math.max(max, lr.units ?? 1), 1);
+
+            const roomsPayload = discoveredRooms.map((room) => {
+              const matched = nameToUnits.get(room.name.toLowerCase());
+              return {
+                roomId: String(room.id),
+                roomName: room.name,
+                quantity: matched ?? maxUnits,
+                status: 1, // 1 = active
+                rates: (room.rates ?? []).map((r) => String(r.id)),
+              };
+            });
 
             const activationBody = {
               channelId: channel.id,

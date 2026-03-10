@@ -297,11 +297,15 @@ export function ChannelsClient({ propertyIntegrations }: Props) {
 
     const mappings = Object.entries(rpMappings)
       .filter(([, v]) => v.externalId)
-      .map(([ratePlanId, v]) => ({
-        ratePlanId,
-        externalRatePlanId: v.externalId,
-        externalRatePlanName: v.externalName,
-      }));
+      .map(([ratePlanId, v]) => {
+        const extRp = externalRatePlans.find((rp) => rp.id === v.externalId);
+        return {
+          ratePlanId,
+          externalRatePlanId: v.externalId,
+          externalRatePlanName: v.externalName,
+          externalRoomTypeId: extRp?.roomTypeId || undefined,
+        };
+      });
 
     const result = await saveRatePlanMappings({
       integrationId: current.integration.id,
@@ -323,7 +327,7 @@ export function ChannelsClient({ propertyIntegrations }: Props) {
 
     const result = await provisionChannelContent(
       current.integration.id,
-      current.localRoomTypes.map((rt) => ({ name: rt.name, code: rt.code })),
+      current.localRoomTypes.map((rt) => ({ id: rt.id, name: rt.name, code: rt.code })),
       current.localRatePlans.map((rp) => ({ name: rp.name, code: rp.code })),
     );
 

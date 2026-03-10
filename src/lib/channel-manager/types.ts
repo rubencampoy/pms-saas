@@ -111,6 +111,8 @@ export interface LogCallback {
 export interface ContentItem {
   name: string;
   code: string;
+  /** Number of physical units/rooms for this room type */
+  units?: number;
 }
 
 export interface ProvisionResult {

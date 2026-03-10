@@ -47,6 +47,7 @@ export const ratePlanMappingSchema = z.object({
       ratePlanId: z.string().uuid('Invalid rate plan ID'),
       externalRatePlanId: z.string().min(1, 'External rate plan ID is required'),
       externalRatePlanName: z.string().min(1, 'External rate plan name is required'),
+      externalRoomTypeId: z.string().optional(),
     }),
   ),
 });
