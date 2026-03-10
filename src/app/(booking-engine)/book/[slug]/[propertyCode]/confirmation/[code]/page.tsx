@@ -63,7 +63,7 @@ export default async function ConfirmationPage({ params }: Props) {
 
   const formatCurrency = (amount: string | number, currency: string = 'EUR') => {
     const num = typeof amount === 'string' ? parseFloat(amount) : amount;
-    return new Intl.NumberFormat('en', {
+    return new Intl.NumberFormat('es-ES', {
       style: 'currency',
       currency,
       minimumFractionDigits: 0,

@@ -606,7 +606,7 @@ function SupplementsTab({ supplements, propertyId }: { supplements: Supplement[]
                   {SUPPLEMENT_TYPE_LABELS[supp.type] ?? supp.type}
                 </td>
                 <td className="p-4 text-sm font-semibold text-slate-900 dark:text-white tabular-nums">
-                  {parseFloat(supp.amount).toFixed(2)}€
+                  {parseFloat(supp.amount).toFixed(2)} €
                 </td>
                 <td className="p-4 text-sm text-slate-600 dark:text-slate-300 tabular-nums">
                   {parseFloat(supp.taxRate).toFixed(0)}%

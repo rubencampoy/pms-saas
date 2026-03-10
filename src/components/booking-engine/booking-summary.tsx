@@ -38,7 +38,7 @@ export function BookingSummary({ translations: t }: BookingSummaryProps) {
   };
 
   const formatCurrency = (amount: number, currency: string = 'EUR') => {
-    return new Intl.NumberFormat('en', {
+    return new Intl.NumberFormat('es-ES', {
       style: 'currency',
       currency,
       minimumFractionDigits: 2,

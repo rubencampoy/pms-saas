@@ -1304,7 +1304,7 @@ export function CalendarClient({
                           style={{ height: ROW_HEIGHT }}
                         >
                           <div className="flex items-center justify-between">
-                            <span className="font-bold text-slate-700 dark:text-slate-200 text-xs">{unit.name}</span>
+                            <span className="font-bold text-slate-700 dark:text-slate-200 text-xs">Room {unit.name}</span>
                             {hk && (
                               <span className={`text-[9px] px-1 py-0 rounded ${hk.cls}`}>
                                 {hk.label}

@@ -32,7 +32,7 @@ export function AddonsSelector({ translations: t }: AddonsSelectorProps) {
   if (!hasSearched || selectedItems.size === 0) return null;
 
   const formatCurrency = (amount: number, currency: string) => {
-    return new Intl.NumberFormat('en', {
+    return new Intl.NumberFormat('es-ES', {
       style: 'currency',
       currency,
       minimumFractionDigits: 0,

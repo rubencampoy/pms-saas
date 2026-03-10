@@ -59,7 +59,7 @@ export function RoomTypeCard({ result, translations: t, priceFormat }: RoomTypeC
       : 0;
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en', {
+    return new Intl.NumberFormat('es-ES', {
       style: 'currency',
       currency: result.currency || 'EUR',
       minimumFractionDigits: 2,
@@ -68,7 +68,7 @@ export function RoomTypeCard({ result, translations: t, priceFormat }: RoomTypeC
   };
 
   const formatPriceWhole = (amount: number) => {
-    return new Intl.NumberFormat('en', {
+    return new Intl.NumberFormat('es-ES', {
       style: 'currency',
       currency: result.currency || 'EUR',
       minimumFractionDigits: 0,

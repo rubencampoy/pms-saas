@@ -344,7 +344,7 @@ export function ReportsClient({
                     interval="preserveStartEnd"
                   />
                   <YAxis
-                    tickFormatter={(v: number) => `€${v}`}
+                    tickFormatter={(v: number) => `${v} €`}
                     tick={{ fontSize: 11, fill: '#94a3b8' }}
                     axisLine={false}
                     tickLine={false}
@@ -358,7 +358,7 @@ export function ReportsClient({
                       fontSize: '12px',
                       color: '#fff',
                     }}
-                    formatter={(value: number | undefined) => [`€${fmtCurrency(value ?? 0)}`, 'Revenue']}
+                    formatter={(value: number | undefined) => [`${fmtCurrency(value ?? 0)} €`, 'Revenue']}
                     labelFormatter={(label) => fmtChartDate(String(label ?? ''))}
                   />
                   <Bar dataKey="revenue" fill="#137fec" radius={[4, 4, 0, 0]} />
@@ -403,7 +403,7 @@ export function ReportsClient({
                             {CHARGE_TYPE_LABELS[r.type] ?? r.type}
                           </td>
                           <td className="p-4 text-sm font-medium text-slate-900 dark:text-white text-right tabular-nums">
-                            €{fmtCurrency(r.total)}
+                            {fmtCurrency(r.total)} €
                           </td>
                           <td className="p-4 text-sm text-slate-600 dark:text-slate-400 text-right tabular-nums">
                             {pct.toFixed(1)}%
@@ -434,7 +434,7 @@ export function ReportsClient({
                         Total
                       </td>
                       <td className="p-4 text-sm font-bold text-slate-900 dark:text-white text-right tabular-nums">
-                        €{fmtCurrency(totalRevenue)}
+                        {fmtCurrency(totalRevenue)} €
                       </td>
                       <td className="p-4 text-sm text-slate-600 dark:text-slate-400 text-right">
                         100%
@@ -537,7 +537,7 @@ export function ReportsClient({
                             {r.count}
                           </td>
                           <td className="p-4 text-sm font-medium text-slate-900 dark:text-white text-right tabular-nums">
-                            €{fmtCurrency(r.total)}
+                            {fmtCurrency(r.total)} €
                           </td>
                         </tr>
                       ))}

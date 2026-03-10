@@ -112,7 +112,7 @@ export function RateOverridePopover({
         daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
         currency: 'EUR',
         fields,
-        ...(fields.includes('amount') ? { amount: price } : {}),
+        ...(fields.includes('amount') ? { amount: price.replace(',', '.') } : {}),
         ...(fields.includes('minStay') ? { minStay: Number(minStay) } : {}),
       });
 
@@ -172,13 +172,10 @@ export function RateOverridePopover({
             </p>
           )}
           <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">
-              &euro;
-            </span>
             <input
               type="number"
               min="0"
-              step="0.01"
+              step="1"
               value={price}
               onChange={(e) => setPrice(e.target.value)}
               placeholder={
@@ -188,9 +185,12 @@ export function RateOverridePopover({
                     ? `${parseFloat(priceRange.min).toFixed(0)} - ${parseFloat(priceRange.max).toFixed(0)}`
                     : '0'
               }
-              className="w-full pl-8 pr-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 placeholder:text-slate-400 focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none"
+              className="w-full pl-3 pr-8 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 placeholder:text-slate-400 focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none"
               autoFocus
             />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">
+              &euro;
+            </span>
           </div>
         </div>
 

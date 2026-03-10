@@ -361,9 +361,9 @@ export function BookingsClient({
                       {/* Amount */}
                       <td className="p-4 text-right">
                         <span className="text-sm font-medium text-slate-900 dark:text-white tabular-nums">
-                          &euro;{Number(res.totalAmount).toLocaleString('es-ES', {
+                          {Number(res.totalAmount).toLocaleString('es-ES', {
                             minimumFractionDigits: 2,
-                          })}
+                          })} &euro;
                         </span>
                       </td>
 

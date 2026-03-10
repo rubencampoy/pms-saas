@@ -205,7 +205,7 @@ function formatDisplayValue(value: string | number | boolean | undefined, field:
   switch (field) {
     case 'price': {
       const num = parseFloat(String(value));
-      return isNaN(num) ? '' : `€${num.toFixed(0)}`;
+      return isNaN(num) ? '' : `${num.toFixed(0)} €`;
     }
     case 'minStay':
     case 'maxStay': {
@@ -218,7 +218,7 @@ function formatDisplayValue(value: string | number | boolean | undefined, field:
 }
 
 function parseInputValue(raw: string, field: SubRowType): string | number | null {
-  const trimmed = raw.trim().replace('€', '');
+  const trimmed = raw.trim().replace(' €', '').replace('€', '');
   if (!trimmed) return null;
 
   switch (field) {

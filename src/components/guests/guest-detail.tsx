@@ -89,7 +89,7 @@ function fmtDate(dateStr: string): string {
 
 function fmtCurrency(amount: string, currency: string = 'EUR'): string {
   const sym = currency === 'EUR' ? '\u20AC' : currency;
-  return `${sym}${Number(amount).toLocaleString('es-ES', { minimumFractionDigits: 2 })}`;
+  return `${Number(amount).toLocaleString('es-ES', { minimumFractionDigits: 2 })} ${sym}`;
 }
 
 export function GuestDetail({ guest, reservations }: GuestDetailProps) {

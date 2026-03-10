@@ -145,7 +145,7 @@ export function ReservationPopover({
             {reservation.nights} {t('nights')}
           </span>
           <span className="font-semibold text-slate-900 dark:text-white">
-            &euro;{Number(reservation.totalAmount).toFixed(2)}
+            {Number(reservation.totalAmount).toFixed(2)} &euro;
           </span>
         </div>
       </div>

@@ -196,7 +196,7 @@ export function QuickInsightsPanel({
           {t('revpar')}
         </p>
         <p className="text-xl font-bold text-slate-900 dark:text-white">
-          &euro;{revpar.toFixed(2)}
+          {revpar.toFixed(2)} &euro;
         </p>
         <p className="text-[10px] text-slate-400">{t('revparDesc')}</p>
       </div>

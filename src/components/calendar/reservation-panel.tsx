@@ -252,7 +252,7 @@ export function ReservationPanel({
                 <DetailItem label={t('source')} value={tSource(reservation.source)} />
                 <DetailItem
                   label={t('total')}
-                  value={`€${parseFloat(reservation.totalAmount).toFixed(2)}`}
+                  value={`${parseFloat(reservation.totalAmount).toFixed(2)} €`}
                   highlight
                 />
                 {!reservation.unitId && (
@@ -275,16 +275,16 @@ export function ReservationPanel({
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-slate-500 dark:text-slate-400">{t('total')}</span>
-                    <span className="font-medium text-slate-900 dark:text-white">€{parseFloat(folioSummary.total).toFixed(2)}</span>
+                    <span className="font-medium text-slate-900 dark:text-white">{parseFloat(folioSummary.total).toFixed(2)} €</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-slate-500 dark:text-slate-400">{t('paid')}</span>
-                    <span className="font-medium text-green-600 dark:text-green-400">€{parseFloat(folioSummary.paidAmount).toFixed(2)}</span>
+                    <span className="font-medium text-green-600 dark:text-green-400">{parseFloat(folioSummary.paidAmount).toFixed(2)} €</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-slate-500 dark:text-slate-400">{t('balance')}</span>
                     <span className={`font-bold ${parseFloat(folioSummary.balance) > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-white'}`}>
-                      €{parseFloat(folioSummary.balance).toFixed(2)}
+                      {parseFloat(folioSummary.balance).toFixed(2)} €
                     </span>
                   </div>
                   <Link

@@ -28,7 +28,7 @@ export function CheckoutSummary({ translations: t, backHref }: CheckoutSummaryPr
   if (!summary) return null;
 
   const formatCurrency = (amount: number, currency: string = 'EUR') => {
-    return new Intl.NumberFormat('en', {
+    return new Intl.NumberFormat('es-ES', {
       style: 'currency',
       currency,
       minimumFractionDigits: 2,

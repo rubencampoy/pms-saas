@@ -139,7 +139,7 @@ export function GuestsClient({ guests: initialGuests }: GuestsClientProps) {
           <div>
             <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">Total Revenue</p>
             <p className="text-2xl font-bold text-slate-900 dark:text-white tabular-nums">
-              &euro;{guests.reduce((sum, g) => sum + Number(g.totalRevenue), 0).toLocaleString('es-ES', { minimumFractionDigits: 0 })}
+              {guests.reduce((sum, g) => sum + Number(g.totalRevenue), 0).toLocaleString('es-ES', { minimumFractionDigits: 0 })} &euro;
             </p>
           </div>
         </div>
@@ -379,7 +379,7 @@ function GuestRow({ guest, isPending, onEdit, onDelete }: GuestRowProps) {
       {/* Revenue */}
       <td className="p-4 text-right">
         <span className="text-sm font-medium text-slate-900 dark:text-white tabular-nums">
-          &euro;{Number(guest.totalRevenue).toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+          {Number(guest.totalRevenue).toLocaleString('es-ES', { minimumFractionDigits: 2 })} &euro;
         </span>
       </td>
 

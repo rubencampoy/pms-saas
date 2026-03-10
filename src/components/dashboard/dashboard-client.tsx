@@ -225,7 +225,7 @@ export function DashboardClient({
           iconBg="bg-green-50 dark:bg-green-900/20"
           iconText="text-green-600 dark:text-green-400"
           label="ADR"
-          value={`€${fmtCurrency(kpis.adr)}`}
+          value={`${fmtCurrency(kpis.adr)} €`}
           sub="Avg daily rate"
         />
 
@@ -235,7 +235,7 @@ export function DashboardClient({
           iconBg="bg-purple-50 dark:bg-purple-900/20"
           iconText="text-purple-600 dark:text-purple-400"
           label="RevPAR"
-          value={`€${fmtCurrency(kpis.revpar)}`}
+          value={`${fmtCurrency(kpis.revpar)} €`}
           sub="Rev per available room"
         />
 
@@ -265,7 +265,7 @@ export function DashboardClient({
           iconBg="bg-red-50 dark:bg-red-900/20"
           iconText="text-red-600 dark:text-red-400"
           label="Outstanding"
-          value={`€${fmtCurrency(outstanding.totalBalance)}`}
+          value={`${fmtCurrency(outstanding.totalBalance)} €`}
           sub={`${outstanding.count} open folio${outstanding.count !== 1 ? 's' : ''}`}
         />
       </div>
@@ -358,7 +358,7 @@ export function DashboardClient({
                     tickLine={false}
                   />
                   <YAxis
-                    tickFormatter={(v: number) => `€${v}`}
+                    tickFormatter={(v: number) => `${v} €`}
                     tick={{ fontSize: 11, fill: '#94a3b8' }}
                     axisLine={false}
                     tickLine={false}
@@ -372,7 +372,7 @@ export function DashboardClient({
                       fontSize: '12px',
                       color: '#fff',
                     }}
-                    formatter={(value: number | undefined) => [`€${fmtCurrency(value ?? 0)}`, 'Revenue']}
+                    formatter={(value: number | undefined) => [`${fmtCurrency(value ?? 0)} €`, 'Revenue']}
                     labelFormatter={(label) => fmtChartDate(String(label ?? ''))}
                   />
                   <Bar dataKey="revenue" fill="#137fec" radius={[4, 4, 0, 0]} />
@@ -388,7 +388,7 @@ export function DashboardClient({
             Revenue by Type
           </h2>
           <div className="text-2xl font-bold text-slate-900 dark:text-white mb-4 tabular-nums">
-            €{fmtCurrency(totalRevenue)}
+            {fmtCurrency(totalRevenue)} €
           </div>
           <div className="space-y-3">
             {revenueByType
@@ -402,7 +402,7 @@ export function DashboardClient({
                         {CHARGE_TYPE_LABELS[r.type] ?? r.type}
                       </span>
                       <span className="font-medium text-slate-900 dark:text-white tabular-nums">
-                        €{fmtCurrency(r.total)}
+                        {fmtCurrency(r.total)} €
                       </span>
                     </div>
                     <div className="h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
@@ -495,7 +495,7 @@ export function DashboardClient({
                           </span>
                         </td>
                         <td className="p-3 text-sm font-medium text-slate-900 dark:text-white text-right tabular-nums">
-                          €{Number(r.totalAmount).toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                          {Number(r.totalAmount).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
                         </td>
                       </tr>
                     );
@@ -568,7 +568,7 @@ export function DashboardClient({
                     <div className="flex items-center gap-3">
                       <span className="text-xs text-slate-400">{r.count} bookings</span>
                       <span className="text-xs font-medium text-slate-900 dark:text-white tabular-nums">
-                        €{fmtCurrency(r.total)}
+                        {fmtCurrency(r.total)} €
                       </span>
                     </div>
                   </div>

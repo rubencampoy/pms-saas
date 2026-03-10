@@ -624,10 +624,10 @@ export function ReservationFormDialog({
                       <>
                         <div className="flex justify-between text-sm text-slate-500 dark:text-slate-400">
                           <span>
-                            ${avgNightlyRate} x {nights} Night{nights !== 1 ? 's' : ''}
+                            {avgNightlyRate} € x {nights} Night{nights !== 1 ? 's' : ''}
                           </span>
                           <span className="font-medium text-slate-900 dark:text-white tabular-nums">
-                            ${roomTotal}
+                            {roomTotal} €
                           </span>
                         </div>
                       </>
@@ -653,7 +653,7 @@ export function ReservationFormDialog({
                           </span>
                           <div className="flex items-baseline gap-1">
                             <span className="text-2xl font-bold text-slate-900 dark:text-white tabular-nums">
-                              ${totalAmount}
+                              {totalAmount} €
                             </span>
                           </div>
                         </div>
@@ -670,8 +670,8 @@ export function ReservationFormDialog({
                           Override total
                         </label>
                         <div className="relative">
-                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-medium">
-                            $
+                          <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-medium">
+                            €
                           </span>
                           <input
                             value={totalAmount}
@@ -681,7 +681,7 @@ export function ReservationFormDialog({
                             }}
                             required
                             placeholder="0.00"
-                            className="w-full pl-6 pr-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all tabular-nums"
+                            className="w-full pl-3 pr-6 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all tabular-nums"
                           />
                         </div>
                       </div>

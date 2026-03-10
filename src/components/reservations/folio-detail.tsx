@@ -139,7 +139,7 @@ const FALLBACK_PAYMENT_METHOD = { label: 'Other', icon: 'more_horiz' };
 
 function fmtCurrency(amount: string | number, currency: string = 'EUR'): string {
   const sym = currency === 'EUR' ? '\u20AC' : currency;
-  return `${sym}${Number(amount).toLocaleString('es-ES', { minimumFractionDigits: 2 })}`;
+  return `${Number(amount).toLocaleString('es-ES', { minimumFractionDigits: 2 })} ${sym}`;
 }
 
 function fmtDate(dateStr: string): string {
