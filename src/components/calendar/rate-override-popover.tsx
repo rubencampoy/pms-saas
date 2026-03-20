@@ -12,6 +12,7 @@ interface RateOverridePopoverProps {
   roomTypeId: string;
   roomTypeName: string;
   ratePlanId: string;
+  allRatePlanIds: string[];
   startDate: string;
   endDate: string; // exclusive (day after last selected)
   currentPrice: string | null;
@@ -28,6 +29,7 @@ export function RateOverridePopover({
   roomTypeId,
   roomTypeName,
   ratePlanId,
+  allRatePlanIds,
   startDate,
   endDate,
   currentPrice,
@@ -49,6 +51,8 @@ export function RateOverridePopover({
         ? String(minStayRange.max)
         : '1',
   );
+  const [applyMinStayToAll, setApplyMinStayToAll] = useState(allRatePlanIds.length > 1);
+  const hasMultipleRatePlans = allRatePlanIds.length > 1;
 
   const start = parseISO(startDate);
   const end = parseISO(endDate);
@@ -97,38 +101,84 @@ export function RateOverridePopover({
     }
 
     startTransition(async () => {
-      // bulkSetRatesSchema expects inclusive endDate (last day to update)
-      // Our endDate is exclusive, so subtract one day
-      const inclusiveEnd = format(
-        addDaysLocal(parseISO(startDate), numDays - 1),
-        'yyyy-MM-dd',
-      );
+      try {
+        // bulkSetRatesSchema expects inclusive endDate (last day to update)
+        // Our endDate is exclusive, so subtract one day
+        const inclusiveEnd = format(
+          addDaysLocal(parseISO(startDate), numDays - 1),
+          'yyyy-MM-dd',
+        );
 
-      const result = await bulkSetRates({
-        ratePlanId,
-        roomTypeIds: [roomTypeId],
-        startDate,
-        endDate: inclusiveEnd,
-        daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
-        currency: 'EUR',
-        fields,
-        ...(fields.includes('amount') ? { amount: price.replace(',', '.') } : {}),
-        ...(fields.includes('minStay') ? { minStay: Number(minStay) } : {}),
-      });
+        const wantsMinStayAll = applyMinStayToAll && fields.includes('minStay');
 
-      if (result.success) {
+        // If applying minStay to all rate plans, we need separate calls:
+        // - One for the default rate plan with all fields (price + minStay)
+        // - Additional calls for other rate plans with only minStay
+        const ratePlanIdsForMinStay = wantsMinStayAll
+          ? allRatePlanIds.filter((id) => id !== ratePlanId)
+          : [];
+
+        // Main call for the selected rate plan (price + minStay)
+        const result = await bulkSetRates({
+          ratePlanId,
+          roomTypeIds: [roomTypeId],
+          startDate,
+          endDate: inclusiveEnd,
+          daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
+          currency: 'EUR',
+          fields,
+          ...(fields.includes('amount') ? { amount: price.replace(',', '.') } : {}),
+          ...(fields.includes('minStay') ? { minStay: Number(minStay) } : {}),
+        });
+
+        if (!result.success) {
+          toast({
+            variant: 'error',
+            title: t('saveError'),
+            description: result.error,
+          });
+          return;
+        }
+
+        // Apply minStay to other rate plans in parallel
+        let totalCount = result.data?.count ?? 0;
+
+        if (ratePlanIdsForMinStay.length > 0) {
+          const otherResults = await Promise.allSettled(
+            ratePlanIdsForMinStay.map((rpId) =>
+              bulkSetRates({
+                ratePlanId: rpId,
+                roomTypeIds: [roomTypeId],
+                startDate,
+                endDate: inclusiveEnd,
+                daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
+                currency: 'EUR',
+                fields: ['minStay'],
+                minStay: Number(minStay),
+              }),
+            ),
+          );
+
+          for (const settled of otherResults) {
+            if (settled.status === 'fulfilled' && settled.value.success) {
+              totalCount += settled.value.data?.count ?? 0;
+            }
+          }
+        }
+
         toast({
           variant: 'success',
           title: t('saveSuccess'),
-          description: t('saveSuccessDesc', { count: String(result.data?.count ?? 0) }),
+          description: t('saveSuccessDesc', { count: String(totalCount) }),
         });
         onSaved();
         onClose();
-      } else {
+      } catch (err) {
+        console.error('RateOverridePopover save error:', err);
         toast({
           variant: 'error',
           title: t('saveError'),
-          description: result.error,
+          description: err instanceof Error ? err.message : String(err),
         });
       }
     });
@@ -225,6 +275,20 @@ export function RateOverridePopover({
               <span className="material-icons text-lg">add</span>
             </button>
           </div>
+          {/* Apply to all rate plans checkbox */}
+          {hasMultipleRatePlans && (
+            <label className="flex items-center gap-2 mt-2 cursor-pointer group/check">
+              <input
+                type="checkbox"
+                checked={applyMinStayToAll}
+                onChange={(e) => setApplyMinStayToAll(e.target.checked)}
+                className="accent-primary w-3.5 h-3.5 rounded cursor-pointer"
+              />
+              <span className="text-[11px] text-slate-500 dark:text-slate-400 group-hover/check:text-slate-700 dark:group-hover/check:text-slate-300 transition-colors">
+                {t('applyToAllRatePlans')}
+              </span>
+            </label>
+          )}
         </div>
       </div>
 

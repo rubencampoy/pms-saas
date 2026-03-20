@@ -57,14 +57,28 @@ export const bookingEngineRepo = {
       .orderBy(asc(roomTypes.sortOrder));
   },
 
-  /** Count available units for a room type in a date range */
+  /**
+   * Count available units for a room type in a date range.
+   *
+   * Uses **peak concurrency** instead of distinct-unit counting so that
+   * room-type availability is calculated correctly even when reservations
+   * could be reshuffled across units of the same type.
+   *
+   * Algorithm:
+   *   1. Count total active units (excluding out-of-order).
+   *   2. Fetch all overlapping reservations (confirmed / checked_in).
+   *   3. For each night in the range, count how many reservations are active
+   *      (checkIn <= night < checkOut).
+   *   4. Peak = max nightly count.
+   *   5. availableUnits = totalUnits − peak.
+   */
   async countAvailableUnits(
     organizationId: string,
     roomTypeId: string,
     checkInDate: string,
     checkOutDate: string,
   ) {
-    // Total active units for this room type
+    // 1. Total active units for this room type
     const totalResult = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(units)
@@ -78,9 +92,12 @@ export const bookingEngineRepo = {
       );
     const totalUnits = totalResult[0]?.count ?? 0;
 
-    // Units blocked by existing reservations
-    const blockedResult = await db
-      .select({ count: sql<number>`count(DISTINCT ${reservations.unitId})::int` })
+    // 2. Fetch all overlapping reservations (both assigned & unassigned)
+    const overlapping = await db
+      .select({
+        checkIn: reservations.checkInDate,
+        checkOut: reservations.checkOutDate,
+      })
       .from(reservations)
       .where(
         and(
@@ -89,31 +106,43 @@ export const bookingEngineRepo = {
           inArray(reservations.status, ['confirmed', 'checked_in']),
           lt(reservations.checkInDate, checkOutDate),
           gt(reservations.checkOutDate, checkInDate),
-          sql`${reservations.unitId} IS NOT NULL`,
         ),
       );
-    const blockedUnits = blockedResult[0]?.count ?? 0;
 
-    // Reservations without assigned unit
-    const unassignedResult = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(reservations)
-      .where(
-        and(
-          eq(reservations.organizationId, organizationId),
-          eq(reservations.roomTypeId, roomTypeId),
-          inArray(reservations.status, ['confirmed', 'checked_in']),
-          lt(reservations.checkInDate, checkOutDate),
-          gt(reservations.checkOutDate, checkInDate),
-          sql`${reservations.unitId} IS NULL`,
-        ),
-      );
-    const unassignedBlocks = unassignedResult[0]?.count ?? 0;
+    if (overlapping.length === 0) {
+      return { totalUnits, blockedUnits: 0, availableUnits: totalUnits };
+    }
 
+    // 3. Calculate peak concurrency across all nights in the requested range
+    //    A reservation occupies a night when: reservationCheckIn <= night < reservationCheckOut
+    let peakConcurrency = 0;
+    const startNight = new Date(checkInDate + 'T00:00:00Z');
+    const endNight = new Date(checkOutDate + 'T00:00:00Z'); // exclusive (checkout day)
+
+    for (
+      let night = new Date(startNight);
+      night < endNight;
+      night.setUTCDate(night.getUTCDate() + 1)
+    ) {
+      const nightStr = night.toISOString().split('T')[0]!;
+      let count = 0;
+      for (const res of overlapping) {
+        // Reservation is active on this night if checkIn <= night < checkOut
+        if (res.checkIn <= nightStr && nightStr < res.checkOut) {
+          count++;
+        }
+      }
+      if (count > peakConcurrency) {
+        peakConcurrency = count;
+      }
+    }
+
+    // 4. Available = total − peak
+    const blockedUnits = peakConcurrency;
     return {
       totalUnits,
-      blockedUnits: blockedUnits + unassignedBlocks,
-      availableUnits: Math.max(0, totalUnits - blockedUnits - unassignedBlocks),
+      blockedUnits,
+      availableUnits: Math.max(0, totalUnits - blockedUnits),
     };
   },
 
@@ -142,8 +171,9 @@ export const bookingEngineRepo = {
   ) {
     // Rates cover check-in through the night before check-out
     // So we need dates from checkIn to checkOut - 1 day
-    const lastNight = new Date(checkOutDate);
-    lastNight.setDate(lastNight.getDate() - 1);
+    // Use UTC to avoid DST issues with toISOString()
+    const lastNight = new Date(checkOutDate + 'T00:00:00Z');
+    lastNight.setUTCDate(lastNight.getUTCDate() - 1);
     const lastNightStr = lastNight.toISOString().split('T')[0]!;
 
     return db

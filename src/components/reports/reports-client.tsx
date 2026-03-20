@@ -16,6 +16,7 @@ import {
   Pie,
   Cell,
 } from 'recharts';
+import { ClientOnly } from '@/components/ui/client-only';
 
 // ── Types ──
 
@@ -250,7 +251,7 @@ export function ReportsClient({
               Daily Occupancy Rate (90 days)
             </h2>
             <div className="h-[400px]">
-              <ResponsiveContainer width="100%" height="100%">
+              <ClientOnly fallback={<div className="h-full w-full animate-pulse rounded-lg bg-slate-100 dark:bg-slate-700" />}><ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={dailyOccupancy}>
                   <defs>
                     <linearGradient id="occGradReport" x1="0" y1="0" x2="0" y2="1">
@@ -294,7 +295,7 @@ export function ReportsClient({
                     fill="url(#occGradReport)"
                   />
                 </AreaChart>
-              </ResponsiveContainer>
+              </ResponsiveContainer></ClientOnly>
             </div>
           </div>
 
@@ -332,7 +333,7 @@ export function ReportsClient({
               Daily Revenue (90 days)
             </h2>
             <div className="h-[400px]">
-              <ResponsiveContainer width="100%" height="100%">
+              <ClientOnly fallback={<div className="h-full w-full animate-pulse rounded-lg bg-slate-100 dark:bg-slate-700" />}><ResponsiveContainer width="100%" height="100%">
                 <BarChart data={dailyRevenue}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" strokeOpacity={0.5} />
                   <XAxis
@@ -363,7 +364,7 @@ export function ReportsClient({
                   />
                   <Bar dataKey="revenue" fill="#137fec" radius={[4, 4, 0, 0]} />
                 </BarChart>
-              </ResponsiveContainer>
+              </ResponsiveContainer></ClientOnly>
             </div>
           </div>
 
@@ -460,7 +461,7 @@ export function ReportsClient({
               </h2>
               {revenueBySource.length > 0 ? (
                 <div className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ClientOnly fallback={<div className="h-full w-full animate-pulse rounded-lg bg-slate-100 dark:bg-slate-700" />}><ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
                         data={revenueBySource.map((r) => ({
@@ -488,7 +489,7 @@ export function ReportsClient({
                         }}
                       />
                     </PieChart>
-                  </ResponsiveContainer>
+                  </ResponsiveContainer></ClientOnly>
                 </div>
               ) : (
                 <p className="text-sm text-slate-400 text-center py-12">No data</p>
@@ -560,7 +561,7 @@ export function ReportsClient({
               </h2>
               {topNationalities.length > 0 ? (
                 <div className="h-[400px]">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ClientOnly fallback={<div className="h-full w-full animate-pulse rounded-lg bg-slate-100 dark:bg-slate-700" />}><ResponsiveContainer width="100%" height="100%">
                     <BarChart
                       data={topNationalities}
                       layout="vertical"
@@ -593,7 +594,7 @@ export function ReportsClient({
                       />
                       <Bar dataKey="count" fill="#137fec" radius={[0, 4, 4, 0]} />
                     </BarChart>
-                  </ResponsiveContainer>
+                  </ResponsiveContainer></ClientOnly>
                 </div>
               ) : (
                 <p className="text-sm text-slate-400 text-center py-12">No nationality data</p>

@@ -96,6 +96,7 @@ interface CalendarClientProps {
   guests: Guest[];
   rates: Rate[];
   defaultRatePlanId: string | null;
+  allRatePlanIds: string[];
   roomBlocks: RoomBlock[];
   initialStartDate: string;
   initialEndDate: string;
@@ -103,12 +104,10 @@ interface CalendarClientProps {
 
 const ROW_HEIGHT = 40;
 const SIDEBAR_WIDTH = 224;
-const HEADER_HEIGHT = 56;
-const RT_HEADER_HEIGHT = 24;
-const PRICE_ROW_HEIGHT = 24;
-const AVAIL_ROW_HEIGHT = 24;
-const OCC_ROW_HEIGHT = 24;
-const COL_WIDTH = 90;
+const MONTH_BAR_HEIGHT = 24;
+const HEADER_HEIGHT = 52;
+const INFO_ROW_HEIGHT = 36;
+const COL_WIDTH = 68;
 
 const ASSIGNABLE_STATUSES = new Set(['confirmed', 'checked_in']);
 
@@ -129,6 +128,7 @@ export function CalendarClient({
   guests,
   rates,
   defaultRatePlanId,
+  allRatePlanIds,
   roomBlocks,
   initialStartDate,
   initialEndDate,
@@ -500,14 +500,25 @@ export function CalendarClient({
           const occupied = optimisticReservations.some(
             (r) => r.unitId === u.id && r.checkInDate <= dayStr && r.checkOutDate > dayStr,
           );
-          if (!occupied) available++;
+          const blocked = roomBlocks.some(
+            (b) => b.unitId === u.id && b.startDate <= dayStr && b.endDate > dayStr,
+          );
+          if (!occupied && !blocked) available++;
         }
-        dayMap.set(dayStr, available);
+        // Subtract unassigned reservations for this room type on this day
+        const unassignedCount = optimisticReservations.filter(
+          (r) =>
+            !r.unitId &&
+            r.roomTypeId === rt.id &&
+            r.checkInDate <= dayStr &&
+            r.checkOutDate > dayStr,
+        ).length;
+        dayMap.set(dayStr, Math.max(0, available - unassignedCount));
       }
       map.set(rt.id, dayMap);
     }
     return map;
-  }, [roomTypes, units, days, optimisticReservations]);
+  }, [roomTypes, units, days, optimisticReservations, roomBlocks]);
 
   // Global occupancy percentage per day (all units across all room types)
   const occupancyByDay = useMemo(() => {
@@ -521,12 +532,20 @@ export function CalendarClient({
         const isOccupied = optimisticReservations.some(
           (r) => r.unitId === u.id && r.checkInDate <= dayStr && r.checkOutDate > dayStr,
         );
-        if (isOccupied) occupied++;
+        const isBlocked = roomBlocks.some(
+          (b) => b.unitId === u.id && b.startDate <= dayStr && b.endDate > dayStr,
+        );
+        if (isOccupied || isBlocked) occupied++;
       }
-      map.set(dayStr, Math.round((occupied / totalUnits) * 100));
+      // Add unassigned reservations (no unit yet, but still occupy inventory)
+      const unassignedCount = optimisticReservations.filter(
+        (r) => !r.unitId && r.checkInDate <= dayStr && r.checkOutDate > dayStr,
+      ).length;
+      const totalOccupied = Math.min(totalUnits, occupied + unassignedCount);
+      map.set(dayStr, Math.round((totalOccupied / totalUnits) * 100));
     }
     return map;
-  }, [units, days, optimisticReservations]);
+  }, [units, days, optimisticReservations, roomBlocks]);
 
   // Unassigned reservations by check-in date (global, all room types)
   const unassignedByDay = useMemo(() => {
@@ -975,14 +994,48 @@ export function CalendarClient({
   // Grid header ref — synced horizontally with the grid body
   const gridHeaderRef = useRef<HTMLDivElement>(null);
 
+  // Compute month spans for the month indicator bar
+  const monthSpans = useMemo(() => {
+    const spans: { label: string; startIndex: number; count: number }[] = [];
+    let current = '';
+    let startIdx = 0;
+    let count = 0;
+    for (let i = 0; i < days.length; i++) {
+      const label = format(days[i], 'MMM yyyy').toUpperCase();
+      if (label !== current) {
+        if (current) spans.push({ label: current, startIndex: startIdx, count });
+        current = label;
+        startIdx = i;
+        count = 1;
+      } else {
+        count++;
+      }
+    }
+    if (current) spans.push({ label: current, startIndex: startIdx, count });
+    return spans;
+  }, [days]);
+
+  // Track visible month label based on scroll position
+  const [visibleMonthLabel, setVisibleMonthLabel] = useState(() => {
+    if (days.length > 0) return format(days[0], 'MMM yyyy').toUpperCase();
+    return '';
+  });
+
   // Sync grid header horizontal scroll with grid body
   const syncHeaderScroll = useCallback(() => {
     const grid = gridContainerRef.current;
     const header = gridHeaderRef.current;
     if (grid && header) {
       header.scrollLeft = grid.scrollLeft;
+      // Update visible month based on scroll position
+      const scrollLeft = grid.scrollLeft;
+      const visibleDayIndex = Math.floor(scrollLeft / COL_WIDTH);
+      if (visibleDayIndex >= 0 && visibleDayIndex < days.length) {
+        const label = format(days[visibleDayIndex], 'MMM yyyy').toUpperCase();
+        setVisibleMonthLabel(label);
+      }
     }
-  }, []);
+  }, [days]);
 
   // Listen to grid body scroll to sync header
   useEffect(() => {
@@ -1062,9 +1115,39 @@ export function CalendarClient({
     return () => window.removeEventListener('mouseup', stopPan);
   }, []);
 
-  // Global mouseup to finalize drag-to-create even if mouse leaves grid
+  // --- Drag-to-pan on the header (date cells) to scroll the grid horizontally ---
+  const isHeaderPanningRef = useRef(false);
+  const headerPanStartXRef = useRef(0);
+  const headerPanStartScrollRef = useRef(0);
+
+  const handleHeaderPanDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    // Don't pan if clicking a button (unassigned badge)
+    if ((e.target as HTMLElement).closest('button')) return;
+    const grid = gridContainerRef.current;
+    if (!grid) return;
+    isHeaderPanningRef.current = true;
+    headerPanStartXRef.current = e.clientX;
+    headerPanStartScrollRef.current = grid.scrollLeft;
+    e.preventDefault();
+  }, []);
+
+  const handleHeaderPanMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isHeaderPanningRef.current) return;
+    const grid = gridContainerRef.current;
+    if (!grid) return;
+    const dx = e.clientX - headerPanStartXRef.current;
+    grid.scrollLeft = headerPanStartScrollRef.current - dx;
+  }, []);
+
+  const handleHeaderPanUp = useCallback(() => {
+    isHeaderPanningRef.current = false;
+  }, []);
+
+  // Global mouseup to finalize drag-to-create and header pan even if mouse leaves grid
   useEffect(() => {
     const handleGlobalMouseUp = (e: globalThis.MouseEvent) => {
+      isHeaderPanningRef.current = false;
       if (dragCreate) {
         handleDragCreateEnd(e.clientX, e.clientY);
       }
@@ -1158,26 +1241,48 @@ export function CalendarClient({
               className="flex-shrink-0 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 z-30"
               style={{ width: SIDEBAR_WIDTH }}
             >
+              {/* Month bar — sidebar side: always shows current visible month */}
+              <div
+                className="border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center px-4"
+                style={{ height: MONTH_BAR_HEIGHT }}
+              >
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">{visibleMonthLabel}</span>
+              </div>
               <div
                 className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex items-center px-4"
                 style={{ height: HEADER_HEIGHT }}
               >
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Rooms</span>
               </div>
-              <div
-                className="border-b border-slate-200 dark:border-slate-700 bg-blue-50/50 dark:bg-blue-900/10 flex items-center px-4"
-                style={{ height: OCC_ROW_HEIGHT }}
-              >
-                <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider">Occupancy</span>
-              </div>
             </div>
 
             {/* Grid header — horizontally synced with grid body via gridContainerRef */}
             <div
-              className="flex-1 overflow-hidden"
+              className="flex-1 overflow-hidden cursor-grab active:cursor-grabbing"
               ref={gridHeaderRef}
+              onMouseDown={handleHeaderPanDown}
+              onMouseMove={handleHeaderPanMove}
+              onMouseUp={handleHeaderPanUp}
+              onMouseLeave={handleHeaderPanUp}
             >
               <div className="min-w-max">
+                {/* Month indicator bar */}
+                <div
+                  className="flex border-b border-slate-200 dark:border-slate-700"
+                  style={{ height: MONTH_BAR_HEIGHT }}
+                >
+                  {monthSpans.map((span, i) => (
+                    <div
+                      key={`${span.label}-${span.startIndex}`}
+                      className={`flex-shrink-0 flex items-center px-3 bg-white dark:bg-slate-800 ${i > 0 ? 'border-l-2 border-l-slate-300 dark:border-l-slate-600' : ''}`}
+                      style={{ width: span.count * COL_WIDTH }}
+                    >
+                      <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider whitespace-nowrap">
+                        {span.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
                 {/* Day header row */}
                 <div
                   className="flex border-b border-slate-200 dark:border-slate-700"
@@ -1186,6 +1291,10 @@ export function CalendarClient({
                   {days.map((day) => {
                     const today = isToday(day);
                     const weekend = isWeekend(day);
+                    const dayStr = format(day, 'yyyy-MM-dd');
+                    const occ = occupancyByDay.get(dayStr) ?? 0;
+                    const unassignedList = unassignedByDay.get(dayStr);
+                    const unassignedCount = unassignedList?.length ?? 0;
                     return (
                       <div
                         key={day.toISOString()}
@@ -1198,42 +1307,14 @@ export function CalendarClient({
                         }`}
                         style={{ width: colWidth }}
                       >
-                        <span className={`text-sm font-bold ${
+                        <span className={`text-sm font-medium leading-none ${
                           today
                             ? 'text-primary dark:text-blue-400'
                             : weekend
                               ? 'text-amber-600 dark:text-amber-400'
                               : 'text-slate-600 dark:text-slate-300'
-                        }`}>{format(day, 'EEE')}</span>
-                        <span className={`text-[11px] ${
-                          today
-                            ? 'text-primary/70 dark:text-blue-400/70'
-                            : weekend
-                              ? 'text-amber-500/70 dark:text-amber-500/70'
-                              : 'text-slate-400'
-                        }`}>{format(day, 'MMM dd')}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Global occupancy row */}
-                <div
-                  className="flex border-b border-slate-200 dark:border-slate-700 bg-blue-50/50 dark:bg-blue-900/10"
-                  style={{ height: OCC_ROW_HEIGHT }}
-                >
-                  {days.map((day) => {
-                    const dayStr = format(day, 'yyyy-MM-dd');
-                    const occ = occupancyByDay.get(dayStr) ?? 0;
-                    const unassignedList = unassignedByDay.get(dayStr);
-                    const unassignedCount = unassignedList?.length ?? 0;
-                    return (
-                      <div
-                        key={`occ-${day.toISOString()}`}
-                        className="flex-shrink-0 border-r border-slate-200 dark:border-slate-700 flex items-center justify-center relative"
-                        style={{ width: colWidth }}
-                      >
-                        <span className={`text-[10px] font-bold ${
+                        }`}>{format(day, 'EEE')} {format(day, 'd')}</span>
+                        <span className={`text-xs font-bold leading-none mt-0.5 ${
                           occ >= 90
                             ? 'text-red-600 dark:text-red-400'
                             : occ >= 70
@@ -1275,25 +1356,14 @@ export function CalendarClient({
                 className="flex-shrink-0 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 z-30 shadow-[4px_0_24px_-12px_rgba(0,0,0,0.1)]"
                 style={{ width: SIDEBAR_WIDTH }}
               >
-                {groupedUnits.map((group) => (
+                {groupedUnits.map((group, groupIndex) => (
                   <div key={group.roomType.id}>
                     <div
-                      className="bg-slate-50 dark:bg-slate-900 px-4 flex items-center text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 dark:border-slate-700"
-                      style={{ height: RT_HEADER_HEIGHT }}
+                      className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between px-4"
+                      style={{ height: INFO_ROW_HEIGHT }}
                     >
-                      {group.roomType.name}
-                    </div>
-                    <div
-                      className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center px-4 text-[10px] text-slate-500 font-medium italic"
-                      style={{ height: PRICE_ROW_HEIGHT }}
-                    >
-                      Price
-                    </div>
-                    <div
-                      className="bg-slate-100/50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 flex items-center px-4 text-[10px] text-slate-500 font-medium"
-                      style={{ height: AVAIL_ROW_HEIGHT }}
-                    >
-                      Availability
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate">{group.roomType.name}</span>
+                      <span className="text-[10px] text-slate-400 font-medium ml-1 whitespace-nowrap">Avail.</span>
                     </div>
                     {group.units.map((unit) => {
                       const hk = HK_BADGE[unit.housekeepingStatus];
@@ -1347,7 +1417,7 @@ export function CalendarClient({
                           }`}
                           style={{ width: colWidth }}
                         >
-                          <div className="absolute inset-y-0 left-1/2 border-l border-dashed border-slate-200 dark:border-slate-700" />
+                          {/* Removed: vertical dashed line dividing days in half */}
                           {today && (
                             <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-red-400/50 z-20">
                               <div className="w-2 h-2 bg-red-400 rounded-full absolute -top-1 -left-[3px]" />
@@ -1359,24 +1429,21 @@ export function CalendarClient({
                   </div>
 
                   {/* Room type groups with rows */}
-                  {groupedUnits.map((group) => {
+                  {groupedUnits.map((group, groupIndex) => {
                     const rtAvail = availabilityByRoomTypeDay.get(group.roomType.id);
                     return (
                       <div key={group.roomType.id}>
-                        <div
-                          className="border-b border-slate-200 dark:border-slate-700 relative"
-                          style={{ height: RT_HEADER_HEIGHT }}
-                        />
-                        {/* Price row — click-to-select for rate overrides */}
+                        {/* Price + availability combined row */}
                         <div
                           className="flex border-b border-slate-200 dark:border-slate-700 relative z-10 bg-white dark:bg-slate-800"
-                          style={{ height: PRICE_ROW_HEIGHT }}
+                          style={{ height: INFO_ROW_HEIGHT }}
                           onMouseLeave={() => setPriceRowHoverDate(null)}
                         >
                           {days.map((day) => {
                             const weekend = isWeekend(day);
                             const dayStr = format(day, 'yyyy-MM-dd');
                             const price = rateMap.get(`${group.roomType.id}:${dayStr}`);
+                            const avail = rtAvail?.get(dayStr) ?? 0;
 
                             // Determine highlight state
                             let isHighlighted = false;
@@ -1384,15 +1451,13 @@ export function CalendarClient({
                               && priceRowSelection.roomTypeId === group.roomType.id
                               && dayStr >= priceRowSelection.startDate
                               && dayStr < priceRowSelection.endDate) {
-                              isHighlighted = true; // In finalized selection
+                              isHighlighted = true;
                             } else if (priceRowClickStart && priceRowClickStart.roomTypeId === group.roomType.id) {
                               if (priceRowHoverDate && priceRowHoverDate !== priceRowClickStart.date) {
-                                // Hover range preview between first click and hover
                                 const rangeA = priceRowClickStart.date <= priceRowHoverDate ? priceRowClickStart.date : priceRowHoverDate;
                                 const rangeB = priceRowClickStart.date <= priceRowHoverDate ? priceRowHoverDate : priceRowClickStart.date;
                                 isHighlighted = dayStr >= rangeA && dayStr <= rangeB;
                               } else {
-                                // Just highlight the first clicked cell
                                 isHighlighted = dayStr === priceRowClickStart.date;
                               }
                             }
@@ -1401,7 +1466,7 @@ export function CalendarClient({
                               <div
                                 key={`price-${day.toISOString()}`}
                                 data-price-cell
-                                className={`flex-shrink-0 border-r border-slate-200 dark:border-slate-700 flex items-center justify-center p-0.5 cursor-pointer select-none transition-colors ${
+                                className={`flex-shrink-0 border-r border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center cursor-pointer select-none transition-colors ${
                                   isHighlighted
                                     ? 'bg-primary/15 dark:bg-primary/25'
                                     : weekend
@@ -1416,35 +1481,19 @@ export function CalendarClient({
                                   }
                                 }}
                               >
-                                <span className={`text-xs text-center ${
+                                <span className={`text-xs font-medium leading-none mb-1 ${
                                   isHighlighted
-                                    ? 'font-bold text-primary dark:text-blue-400'
+                                    ? 'text-primary dark:text-blue-400'
                                     : price
-                                      ? weekend
-                                        ? 'font-semibold text-amber-600 dark:text-amber-500'
-                                        : 'font-semibold text-slate-700 dark:text-slate-300'
+                                      ? 'text-slate-600 dark:text-slate-300'
                                       : 'text-slate-400'
                                 }`}>
-                                  {price ? `€${parseFloat(price).toFixed(0)}` : '—'}
+                                  {price ? `${parseFloat(price).toFixed(0)}€` : '—'}
                                 </span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                        <div
-                          className="flex border-b border-slate-200 dark:border-slate-700 relative z-10"
-                          style={{ height: AVAIL_ROW_HEIGHT }}
-                        >
-                          {days.map((day) => {
-                            const dayStr = format(day, 'yyyy-MM-dd');
-                            const avail = rtAvail?.get(dayStr) ?? 0;
-                            return (
-                              <div
-                                key={`avail-${day.toISOString()}`}
-                                className="flex-shrink-0 bg-slate-100/50 dark:bg-slate-800/80 flex items-center justify-center text-[10px] font-semibold text-slate-500"
-                                style={{ width: colWidth }}
-                              >
-                                {avail} free
+                                <div className="w-3/4 h-px bg-slate-300 dark:bg-slate-600" />
+                                <span className="text-[10px] font-medium text-slate-400 leading-none mt-1">
+                                  {avail} free
+                                </span>
                               </div>
                             );
                           })}
@@ -1507,6 +1556,8 @@ export function CalendarClient({
           y={popoverState.y}
           reservation={popoverReservation}
           guest={popoverGuest}
+          roomTypeName={roomTypes.find((rt) => rt.id === popoverReservation.roomTypeId)?.name}
+          unitName={popoverReservation.unitId ? units.find((u) => u.id === popoverReservation.unitId)?.name : undefined}
           onViewDetails={() => handleViewDetails(popoverReservation.id)}
           onCheckIn={
             VALID_STATUS_TRANSITIONS[popoverReservation.status as ReservationStatus]?.includes(ReservationStatus.CHECKED_IN)
@@ -1620,6 +1671,7 @@ export function CalendarClient({
             roomTypes.find((rt) => rt.id === rateOverridePopover.roomTypeId)?.name ?? ''
           }
           ratePlanId={defaultRatePlanId}
+          allRatePlanIds={allRatePlanIds}
           startDate={rateOverridePopover.startDate}
           endDate={rateOverridePopover.endDate}
           currentPrice={rateOverridePrefill.price}

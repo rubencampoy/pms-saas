@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from 'react';
 import { updateReservationNotes, updateReservation } from '@/server/actions/reservations';
+import { GuestDetailsCard } from './guest-details-card';
+import type { GuestCardData } from './guest-details-card';
 
 // ── Types ──
 
@@ -22,17 +24,7 @@ interface ReservationData {
   createdAt: string;
 }
 
-interface GuestData {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string | null;
-  phone: string | null;
-  vipStatus: string;
-  nationality: string | null;
-  documentType: string | null;
-  documentNumber: string | null;
-}
+interface GuestData extends GuestCardData {}
 
 interface RoomTypeData {
   id: string;
@@ -96,30 +88,6 @@ const SOURCE_LABELS: Record<string, string> = {
   website: 'Website',
 };
 
-const VIP_CONFIG: Record<string, { label: string; icon: string; color: string }> = {
-  gold: {
-    label: 'VIP Gold',
-    icon: 'stars',
-    color: 'text-amber-600 dark:text-amber-400',
-  },
-  platinum: {
-    label: 'VIP Platinum',
-    icon: 'stars',
-    color: 'text-purple-600 dark:text-purple-400',
-  },
-  diamond: {
-    label: 'VIP Diamond',
-    icon: 'stars',
-    color: 'text-cyan-600 dark:text-cyan-400',
-  },
-};
-
-const DOC_TYPE_LABELS: Record<string, string> = {
-  passport: 'Passport',
-  id_card: 'ID Card',
-  drivers_license: "Driver's License",
-};
-
 // ── Helpers ──
 
 function fmtDateLong(dateStr: string): string {
@@ -157,7 +125,6 @@ export function ReservationDetail({
   const [editOpen, setEditOpen] = useState(false);
   const canEdit = reservation.status === 'confirmed' || reservation.status === 'checked_in';
 
-  const vipConf = guest.vipStatus !== 'none' ? VIP_CONFIG[guest.vipStatus] : null;
   const balanceNum = folioSummary ? parseFloat(folioSummary.balance) : null;
 
   function handleSaveNotes() {
@@ -347,84 +314,7 @@ export function ReservationDetail({
           {/* ── Right column (5/12) ── */}
           <div className="lg:col-span-5 space-y-6">
             {/* Guest Profile Card */}
-            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-              <div className="p-6">
-                {/* Guest header */}
-                <div className="flex items-start justify-between mb-6">
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-xl border-4 border-slate-50 dark:border-slate-800">
-                      {guest.firstName.charAt(0)}{guest.lastName.charAt(0)}
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                        {guest.firstName} {guest.lastName}
-                      </h3>
-                      {vipConf && (
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className={`material-icons-outlined text-[16px] ${vipConf.color}`}>
-                            {vipConf.icon}
-                          </span>
-                          <span className={`text-xs font-bold uppercase tracking-wider ${vipConf.color}`}>
-                            {vipConf.label}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <a
-                    href="/guests"
-                    className="text-slate-400 hover:text-primary transition-colors"
-                    title="View Guest Profile"
-                  >
-                    <span className="material-icons-outlined">open_in_new</span>
-                  </a>
-                </div>
-
-                {/* Contact rows */}
-                <div className="space-y-4">
-                  {guest.email && (
-                    <a
-                      href={`mailto:${guest.email}`}
-                      className="flex items-center gap-3 text-sm group p-2 -mx-2 rounded hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                    >
-                      <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center group-hover:bg-white dark:group-hover:bg-slate-700 transition-colors">
-                        <span className="material-icons-outlined text-slate-400 text-[18px]">email</span>
-                      </div>
-                      <span className="text-slate-600 dark:text-slate-300 truncate">{guest.email}</span>
-                    </a>
-                  )}
-                  {guest.phone && (
-                    <div className="flex items-center gap-3 text-sm group p-2 -mx-2 rounded hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer">
-                      <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center group-hover:bg-white dark:group-hover:bg-slate-700 transition-colors">
-                        <span className="material-icons-outlined text-slate-400 text-[18px]">phone</span>
-                      </div>
-                      <span className="text-slate-600 dark:text-slate-300">{guest.phone}</span>
-                    </div>
-                  )}
-                  {guest.nationality && (
-                    <div className="flex items-center gap-3 text-sm group p-2 -mx-2 rounded hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer">
-                      <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center group-hover:bg-white dark:group-hover:bg-slate-700 transition-colors">
-                        <span className="material-icons-outlined text-slate-400 text-[18px]">location_on</span>
-                      </div>
-                      <span className="text-slate-600 dark:text-slate-300">{guest.nationality}</span>
-                    </div>
-                  )}
-                  {guest.documentType && guest.documentNumber && (
-                    <div className="flex items-center gap-3 text-sm group p-2 -mx-2 rounded hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer">
-                      <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center group-hover:bg-white dark:group-hover:bg-slate-700 transition-colors">
-                        <span className="material-icons-outlined text-slate-400 text-[18px]">badge</span>
-                      </div>
-                      <div>
-                        <span className="text-slate-600 dark:text-slate-300">{guest.documentNumber}</span>
-                        <span className="text-xs text-slate-400 ml-2">
-                          ({DOC_TYPE_LABELS[guest.documentType] ?? guest.documentType})
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+            <GuestDetailsCard guest={guest} canEdit={canEdit} />
 
             {/* Notes Card */}
             <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">

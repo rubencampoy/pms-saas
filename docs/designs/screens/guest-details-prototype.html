@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Guest Details - HotelOS Design</title>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons|Material+Icons+Outlined|Material+Icons+Round" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Manrope', 'sans-serif'] },
+          colors: { primary: '#137fec' }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Manrope', sans-serif; -webkit-font-smoothing: antialiased; }
+  </style>
+</head>
+<body class="bg-[#f6f7f8] p-8">
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- GUEST DETAILS CARD - Reservation Detail    -->
+  <!-- ═══════════════════════════════════════════ -->
+
+  <div class="max-w-[480px] mx-auto space-y-6">
+
+    <!-- Guest Profile Card -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+
+      <!-- Header with gradient accent -->
+      <div class="relative">
+        <div class="h-20 bg-gradient-to-r from-primary/10 via-blue-50 to-indigo-50"></div>
+        <!-- Avatar overlapping header -->
+        <div class="absolute -bottom-8 left-6">
+          <div class="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-primary/20 ring-4 ring-white">
+            MC
+          </div>
+        </div>
+        <!-- Actions -->
+        <div class="absolute top-3 right-3 flex items-center gap-1">
+          <button class="p-1.5 rounded-lg bg-white/80 backdrop-blur-sm hover:bg-white text-slate-500 hover:text-primary transition-colors shadow-sm" title="Edit Guest">
+            <span class="material-icons-round text-lg">edit</span>
+          </button>
+          <a href="#" class="p-1.5 rounded-lg bg-white/80 backdrop-blur-sm hover:bg-white text-slate-500 hover:text-primary transition-colors shadow-sm" title="View Full Profile">
+            <span class="material-icons-round text-lg">open_in_new</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Guest info -->
+      <div class="pt-10 px-6 pb-5">
+        <div class="flex items-start justify-between">
+          <div>
+            <h3 class="text-lg font-bold text-slate-900">María del Carmen Ortiz</h3>
+            <div class="flex items-center gap-2 mt-1">
+              <span class="inline-flex items-center gap-1 bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider">
+                <span class="material-icons text-xs">star</span>
+                VIP Gold
+              </span>
+              <span class="text-xs text-slate-400">·</span>
+              <span class="text-xs text-slate-500">3 estancias anteriores</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Contact info pills -->
+        <div class="mt-4 space-y-2">
+          <a href="mailto:maria.ortiz@email.com" class="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50 hover:bg-primary/5 group transition-colors">
+            <div class="w-9 h-9 rounded-lg bg-white border border-slate-100 flex items-center justify-center group-hover:border-primary/20 group-hover:bg-primary/5 transition-colors">
+              <span class="material-icons-round text-slate-400 group-hover:text-primary text-lg transition-colors">email</span>
+            </div>
+            <div class="min-w-0 flex-1">
+              <p class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Email</p>
+              <p class="text-sm text-slate-700 truncate group-hover:text-primary transition-colors">maria.ortiz@email.com</p>
+            </div>
+            <span class="material-icons-round text-slate-300 text-sm opacity-0 group-hover:opacity-100 transition-opacity">arrow_forward</span>
+          </a>
+
+          <a href="tel:+34612345678" class="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50 hover:bg-primary/5 group transition-colors">
+            <div class="w-9 h-9 rounded-lg bg-white border border-slate-100 flex items-center justify-center group-hover:border-primary/20 group-hover:bg-primary/5 transition-colors">
+              <span class="material-icons-round text-slate-400 group-hover:text-primary text-lg transition-colors">phone</span>
+            </div>
+            <div class="min-w-0 flex-1">
+              <p class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Teléfono</p>
+              <p class="text-sm text-slate-700 group-hover:text-primary transition-colors">+34 612 345 678</p>
+            </div>
+            <span class="material-icons-round text-slate-300 text-sm opacity-0 group-hover:opacity-100 transition-opacity">arrow_forward</span>
+          </a>
+        </div>
+
+        <!-- Divider -->
+        <div class="my-4 border-t border-slate-100"></div>
+
+        <!-- Details grid -->
+        <div class="grid grid-cols-2 gap-3">
+          <div class="p-3 rounded-xl bg-slate-50">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="material-icons-round text-slate-400 text-sm">public</span>
+              <p class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Nacionalidad</p>
+            </div>
+            <p class="text-sm font-semibold text-slate-800 pl-6">🇪🇸 España</p>
+          </div>
+
+          <div class="p-3 rounded-xl bg-slate-50">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="material-icons-round text-slate-400 text-sm">cake</span>
+              <p class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Nacimiento</p>
+            </div>
+            <p class="text-sm font-semibold text-slate-800 pl-6">15 Mar 1985</p>
+          </div>
+
+          <div class="p-3 rounded-xl bg-slate-50">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="material-icons-round text-slate-400 text-sm">badge</span>
+              <p class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Documento</p>
+            </div>
+            <p class="text-sm font-semibold text-slate-800 pl-6">DNI · 12345678A</p>
+          </div>
+
+          <div class="p-3 rounded-xl bg-slate-50">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="material-icons-round text-slate-400 text-sm">translate</span>
+              <p class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Idioma</p>
+            </div>
+            <p class="text-sm font-semibold text-slate-800 pl-6">Español</p>
+          </div>
+        </div>
+
+        <!-- Divider -->
+        <div class="my-4 border-t border-slate-100"></div>
+
+        <!-- Address -->
+        <div class="p-3 rounded-xl bg-slate-50">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="material-icons-round text-slate-400 text-sm">location_on</span>
+            <p class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Dirección</p>
+          </div>
+          <p class="text-sm text-slate-700 pl-6 leading-relaxed">
+            Calle Gran Vía 45, 3º B<br>
+            28013 Madrid, España
+          </p>
+        </div>
+
+        <!-- Guest Notes -->
+        <div class="mt-3 p-3 rounded-xl bg-amber-50 border border-amber-100">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="material-icons-round text-amber-500 text-sm">sticky_note_2</span>
+            <p class="text-[10px] uppercase tracking-wider text-amber-600 font-semibold">Notas del huésped</p>
+          </div>
+          <p class="text-sm text-amber-900 pl-6 leading-relaxed">
+            Alérgica al gluten. Prefiere habitación alta con vista a la calle. Siempre pide almohada extra.
+          </p>
+        </div>
+      </div>
+
+      <!-- Guest Stats footer -->
+      <div class="border-t border-slate-100 bg-slate-50/50 px-6 py-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-4">
+            <div class="flex items-center gap-1.5">
+              <span class="material-icons-round text-slate-400 text-sm">hotel</span>
+              <span class="text-xs text-slate-500"><strong class="text-slate-700">3</strong> estancias</span>
+            </div>
+            <div class="w-px h-3 bg-slate-200"></div>
+            <div class="flex items-center gap-1.5">
+              <span class="material-icons-round text-slate-400 text-sm">payments</span>
+              <span class="text-xs text-slate-500"><strong class="text-slate-700">1.240,00 €</strong> total</span>
+            </div>
+          </div>
+          <a href="#" class="text-xs text-primary font-semibold hover:text-primary/80 transition-colors flex items-center gap-0.5">
+            Historial
+            <span class="material-icons-round text-sm">chevron_right</span>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- VERSION 2: Guest with inline edit mode      -->
+    <!-- ═══════════════════════════════════════════ -->
+
+    <h2 class="text-lg font-bold text-slate-900 mt-12 mb-2">Modo edición inline</h2>
+
+    <div class="bg-white rounded-xl border border-primary/30 shadow-sm shadow-primary/5 overflow-hidden">
+
+      <!-- Header with edit indicator -->
+      <div class="relative">
+        <div class="h-20 bg-gradient-to-r from-primary/10 via-blue-50 to-indigo-50"></div>
+        <div class="absolute -bottom-8 left-6">
+          <div class="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-primary/20 ring-4 ring-white">
+            MC
+          </div>
+        </div>
+        <div class="absolute top-3 right-3 flex items-center gap-2">
+          <span class="text-xs font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-full flex items-center gap-1">
+            <span class="material-icons-round text-sm">edit</span>
+            Editando
+          </span>
+        </div>
+      </div>
+
+      <div class="pt-10 px-6 pb-5">
+        <!-- Editable name -->
+        <div class="grid grid-cols-2 gap-3 mb-4">
+          <div>
+            <label class="block text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1">Nombre</label>
+            <input type="text" value="María del Carmen" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-900 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all">
+          </div>
+          <div>
+            <label class="block text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1">Apellidos</label>
+            <input type="text" value="Ortiz Baez" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-900 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all">
+          </div>
+        </div>
+
+        <!-- Editable contact -->
+        <div class="grid grid-cols-2 gap-3 mb-4">
+          <div>
+            <label class="block text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1">Email</label>
+            <input type="email" value="maria.ortiz@email.com" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all">
+          </div>
+          <div>
+            <label class="block text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1">Teléfono</label>
+            <input type="tel" value="+34 612 345 678" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all">
+          </div>
+        </div>
+
+        <!-- Editable details -->
+        <div class="grid grid-cols-2 gap-3 mb-4">
+          <div>
+            <label class="block text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1">Nacionalidad</label>
+            <select class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all appearance-none cursor-pointer">
+              <option selected>🇪🇸 España</option>
+              <option>🇫🇷 Francia</option>
+              <option>🇬🇧 Reino Unido</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1">Fecha nacimiento</label>
+            <input type="date" value="1985-03-15" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 mb-4">
+          <div>
+            <label class="block text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1">Tipo documento</label>
+            <select class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all appearance-none cursor-pointer">
+              <option selected>DNI / NIF</option>
+              <option>Pasaporte</option>
+              <option>Permiso Conducir</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1">Nº documento</label>
+            <input type="text" value="12345678A" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all">
+          </div>
+        </div>
+
+        <!-- Editable address -->
+        <div class="mb-4">
+          <label class="block text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1">Dirección</label>
+          <input type="text" value="Calle Gran Vía 45, 3º B" class="w-full px-3 py-2 mb-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all">
+          <div class="grid grid-cols-3 gap-2">
+            <input type="text" value="28013" placeholder="CP" class="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all">
+            <input type="text" value="Madrid" placeholder="Ciudad" class="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all">
+            <input type="text" value="España" placeholder="País" class="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all">
+          </div>
+        </div>
+
+        <!-- Editable notes -->
+        <div class="mb-4">
+          <label class="block text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1">Notas</label>
+          <textarea rows="2" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all resize-none">Alérgica al gluten. Prefiere habitación alta con vista a la calle. Siempre pide almohada extra.</textarea>
+        </div>
+
+        <!-- VIP Status -->
+        <div class="mb-4">
+          <label class="block text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1">Estado VIP</label>
+          <div class="flex gap-2">
+            <button class="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 text-slate-500 hover:border-slate-300 transition-colors">Ninguno</button>
+            <button class="px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-100 text-amber-700 border border-amber-200 ring-2 ring-amber-200/50">⭐ Gold</button>
+            <button class="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 text-slate-500 hover:border-slate-300 transition-colors">💎 Platinum</button>
+            <button class="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 text-slate-500 hover:border-slate-300 transition-colors">👑 Diamond</button>
+          </div>
+        </div>
+
+        <!-- Action buttons -->
+        <div class="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
+          <button class="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+            Cancelar
+          </button>
+          <button class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors shadow-sm shadow-primary/30">
+            <span class="material-icons-round text-lg">save</span>
+            Guardar cambios
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

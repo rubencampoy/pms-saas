@@ -122,6 +122,9 @@ export interface ProvisionResult {
   errorMessage?: string;
   /** Raw API responses for debugging — shown in UI expandable section */
   details?: string;
+  /** Room-to-rate mappings discovered during provisioning.
+   *  Key = externalRoomTypeId, Value = array of externalRatePlanIds belonging to that room. */
+  roomRateMappings?: Record<string, string[]>;
 }
 
 // ── Provider Interface ──

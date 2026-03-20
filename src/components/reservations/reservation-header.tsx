@@ -97,7 +97,7 @@ export function ReservationHeader({
   const basePath = `/reservations/${reservation.id}`;
   const tabs = [
     { label: 'Overview', href: basePath },
-    { label: 'Guest Details', href: `${basePath}/guest`, disabled: true },
+    { label: 'Guest Details', href: `${basePath}/guest` },
     { label: 'Folio & Invoice', href: `${basePath}/folio` },
     { label: 'Housekeeping', href: `${basePath}/housekeeping`, disabled: true },
     { label: 'Notes & Logs', href: `${basePath}/notes`, disabled: true },

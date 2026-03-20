@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { format, parseISO, isToday, isTomorrow } from 'date-fns';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { useTranslations } from 'next-intl';
+import { ClientOnly } from '@/components/ui/client-only';
 
 interface Reservation {
   id: string;
@@ -139,47 +140,49 @@ export function QuickInsightsPanel({
           {t('occupancy')}
         </p>
         <div className="relative flex items-center justify-center" style={{ height: 140 }}>
-          <ResponsiveContainer width="100%" height={140}>
-            <PieChart>
-              <Pie
-                data={donutData}
-                cx="50%"
-                cy="50%"
-                innerRadius={45}
-                outerRadius={60}
-                paddingAngle={2}
-                dataKey="value"
-                stroke="none"
-              >
-                {donutData.map((_, index) => (
-                  <Cell
-                    key={index}
-                    fill={DONUT_COLORS[index]}
-                    className="dark:hidden"
-                  />
-                ))}
-              </Pie>
-              {/* Dark mode pie — separate render */}
-              <Pie
-                data={donutData}
-                cx="50%"
-                cy="50%"
-                innerRadius={45}
-                outerRadius={60}
-                paddingAngle={2}
-                dataKey="value"
-                stroke="none"
-                className="hidden dark:block"
-              >
-                {donutData.map((_, index) => (
-                  <Cell
-                    key={index}
-                    fill={DONUT_COLORS_DARK[index]}
-                  />
-                ))}
-              </Pie>
-            </PieChart>
-          </ResponsiveContainer>
+          <ClientOnly fallback={<div className="h-[140px] w-full animate-pulse rounded-full bg-slate-100 dark:bg-slate-700" />}>
+            <ResponsiveContainer width="100%" height={140}>
+              <PieChart>
+                <Pie
+                  data={donutData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={45}
+                  outerRadius={60}
+                  paddingAngle={2}
+                  dataKey="value"
+                  stroke="none"
+                >
+                  {donutData.map((_, index) => (
+                    <Cell
+                      key={index}
+                      fill={DONUT_COLORS[index]}
+                      className="dark:hidden"
+                    />
+                  ))}
+                </Pie>
+                {/* Dark mode pie — separate render */}
+                <Pie
+                  data={donutData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={45}
+                  outerRadius={60}
+                  paddingAngle={2}
+                  dataKey="value"
+                  stroke="none"
+                  className="hidden dark:block"
+                >
+                  {donutData.map((_, index) => (
+                    <Cell
+                      key={index}
+                      fill={DONUT_COLORS_DARK[index]}
+                    />
+                  ))}
+                </Pie>
+              </PieChart>
+            </ResponsiveContainer>
+          </ClientOnly>
           {/* Center text */}
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
             <span className="text-2xl font-bold text-slate-900 dark:text-white">{occupancyPct}%</span>

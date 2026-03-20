@@ -351,19 +351,22 @@
     "checkOut": "Salida",
     "nights": "Noches",
     "roomType": "Tipo Habitación",
-    "unit": "Unidad",
+    "unit": "Habitación",
+    "details": "Detalles",
     "guests": "Huéspedes",
     "source": "Canal",
     "total": "Total",
     "folioSummary": "Resumen Folio",
     "paid": "Pagado",
     "balance": "Saldo",
-    "viewFolio": "Ver Folio",
+    "viewFolio": "Ver Folio completo",
     "noFolio": "Aún no se ha creado folio",
     "specialRequests": "Peticiones Especiales",
     "internalNotes": "Notas Internas",
-    "doCheckIn": "Check In",
-    "doCheckOut": "Check Out",
+    "doCheckIn": "Hacer Check In",
+    "doCheckOut": "Hacer Check Out",
+    "processing": "Procesando...",
+    "viewFullReservation": "Ver reserva completa",
     "adults": "{count} {count, plural, one {adulto} other {adultos}}",
     "children": "{count} {count, plural, one {niño} other {niños}}",
     "unassigned": "Sin asignar"
@@ -410,12 +413,20 @@
     "statusChangeFailed": "Error al cambiar estado"
   },
   "reservationPopover": {
-    "checkIn": "Check In",
-    "checkOut": "Check Out",
+    "checkIn": "Entrada",
+    "checkOut": "Salida",
+    "night": "noche",
     "nights": "noches",
-    "viewDetails": "Detalles",
+    "totalAmount": "Importe total",
+    "viewDetails": "Ver detalles",
     "unassign": "Desasignar",
-    "unknownGuest": "Huésped desconocido"
+    "unassigned": "Sin habitación asignada",
+    "unknownGuest": "Huésped desconocido",
+    "arrivesToday": "Llega hoy",
+    "arrivesTomorrow": "Llega mañana",
+    "departsToday": "Sale hoy",
+    "nightRemaining": "noche restante",
+    "nightsRemaining": "noches restantes"
   },
   "cellAction": {
     "newReservation": "Nueva Reserva",
@@ -461,7 +472,8 @@
     "cancel": "Cancelar",
     "saveSuccess": "Tarifas actualizadas",
     "saveSuccessDesc": "{count} registros de tarifa actualizados",
-    "saveError": "Error al actualizar tarifas"
+    "saveError": "Error al actualizar tarifas",
+    "applyToAllRatePlans": "Aplicar a todas las tarifas"
   },
   "calendarInsights": {
     "title": "Vista Rápida",

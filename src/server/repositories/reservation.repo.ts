@@ -104,7 +104,12 @@ export const reservationRepo = {
       .orderBy(asc(reservations.checkInDate));
   },
 
-  /** Check how many units of a room type are available for a date range */
+  /**
+   * Check how many units of a room type are available for a date range.
+   *
+   * Uses **peak concurrency** so that room-type availability accounts for
+   * the possibility of reshuffling unit assignments (room Tetris).
+   */
   async countAvailableUnits(
     organizationId: string,
     roomTypeId: string,
@@ -112,7 +117,7 @@ export const reservationRepo = {
     checkOutDate: string,
     excludeReservationId?: string,
   ) {
-    // Total active units for this room type
+    // 1. Total active units for this room type
     const totalResult = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(units)
@@ -126,9 +131,8 @@ export const reservationRepo = {
       );
     const totalUnits = totalResult[0]?.count ?? 0;
 
-    // Units blocked by existing reservations in the date range
-    // Strict gt (>) on checkOut: checkout day allows same-day check-in (turnover)
-    const blockedConditions = [
+    // 2. Fetch all overlapping reservations (both assigned & unassigned)
+    const overlapConditions = [
       eq(reservations.organizationId, organizationId),
       eq(reservations.roomTypeId, roomTypeId),
       inArray(reservations.status, ['confirmed', 'checked_in']),
@@ -137,39 +141,48 @@ export const reservationRepo = {
     ];
 
     if (excludeReservationId) {
-      blockedConditions.push(not(eq(reservations.id, excludeReservationId)));
+      overlapConditions.push(not(eq(reservations.id, excludeReservationId)));
     }
 
-    const blockedResult = await db
-      .select({ count: sql<number>`count(DISTINCT ${reservations.unitId})::int` })
+    const overlapping = await db
+      .select({
+        checkIn: reservations.checkInDate,
+        checkOut: reservations.checkOutDate,
+      })
       .from(reservations)
-      .where(and(...blockedConditions));
-    const blockedUnits = blockedResult[0]?.count ?? 0;
+      .where(and(...overlapConditions));
 
-    // Also count reservations without assigned unit (type-level blocks)
-    const unassignedConditions = [
-      eq(reservations.organizationId, organizationId),
-      eq(reservations.roomTypeId, roomTypeId),
-      inArray(reservations.status, ['confirmed', 'checked_in']),
-      lt(reservations.checkInDate, checkOutDate),
-      gt(reservations.checkOutDate, checkInDate),
-      sql`${reservations.unitId} IS NULL`,
-    ];
-
-    if (excludeReservationId) {
-      unassignedConditions.push(not(eq(reservations.id, excludeReservationId)));
+    if (overlapping.length === 0) {
+      return { totalUnits, blockedUnits: 0, availableUnits: totalUnits };
     }
 
-    const unassignedResult = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(reservations)
-      .where(and(...unassignedConditions));
-    const unassignedBlocks = unassignedResult[0]?.count ?? 0;
+    // 3. Calculate peak concurrency across all nights in the requested range
+    let peakConcurrency = 0;
+    const startNight = new Date(checkInDate + 'T00:00:00Z');
+    const endNight = new Date(checkOutDate + 'T00:00:00Z');
 
+    for (
+      let night = new Date(startNight);
+      night < endNight;
+      night.setUTCDate(night.getUTCDate() + 1)
+    ) {
+      const nightStr = night.toISOString().split('T')[0]!;
+      let count = 0;
+      for (const res of overlapping) {
+        if (res.checkIn <= nightStr && nightStr < res.checkOut) {
+          count++;
+        }
+      }
+      if (count > peakConcurrency) {
+        peakConcurrency = count;
+      }
+    }
+
+    // 4. Available = total − peak
     return {
       totalUnits,
-      blockedUnits: blockedUnits + unassignedBlocks,
-      availableUnits: Math.max(0, totalUnits - blockedUnits - unassignedBlocks),
+      blockedUnits: peakConcurrency,
+      availableUnits: Math.max(0, totalUnits - peakConcurrency),
     };
   },
 

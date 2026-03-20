@@ -88,6 +88,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
       guests={guestsList}
       rates={ratesList}
       defaultRatePlanId={defaultPlan?.id ?? null}
+      allRatePlanIds={ratePlansList.map((rp) => rp.id)}
       roomBlocks={roomBlocksList}
       initialStartDate={startDate}
       initialEndDate={endDate}

@@ -117,49 +117,30 @@ export const channelManagerSyncService = {
 
       const updates: RateUpdate[] = [];
 
-      if (rpMapping.externalRoomTypeId) {
-        // Use the specific room type this rate plan belongs to
-        const rtMapping = rtMappings.find((m) => m.externalRoomTypeId === rpMapping.externalRoomTypeId);
-        if (!rtMapping) continue;
+      if (!rpMapping.externalRoomTypeId) {
+        console.warn(`[ChannelManager] syncRates: rate plan ${rpMapping.externalRatePlanId} has no externalRoomTypeId — skipping. Re-run Provision to fix.`);
+        continue;
+      }
 
-        const dbRates = await rateRepo.findByRatePlanAndRoomType(
-          organizationId,
-          ratePlanId,
-          rtMapping.roomTypeId,
-          dateFrom,
-          dateTo,
-        );
+      const rtMapping = rtMappings.find((m) => m.externalRoomTypeId === rpMapping.externalRoomTypeId);
+      if (!rtMapping) continue;
 
-        for (const rate of dbRates) {
-          updates.push({
-            externalRoomTypeId: rpMapping.externalRoomTypeId,
-            externalRatePlanId: rpMapping.externalRatePlanId,
-            date: rate.date,
-            amount: rate.amount,
-            currency: rate.currency,
-          });
-        }
-      } else {
-        // Legacy fallback: push to all room types
-        for (const rtMapping of rtMappings) {
-          const dbRates = await rateRepo.findByRatePlanAndRoomType(
-            organizationId,
-            ratePlanId,
-            rtMapping.roomTypeId,
-            dateFrom,
-            dateTo,
-          );
+      const dbRates = await rateRepo.findByRatePlanAndRoomType(
+        organizationId,
+        ratePlanId,
+        rtMapping.roomTypeId,
+        dateFrom,
+        dateTo,
+      );
 
-          for (const rate of dbRates) {
-            updates.push({
-              externalRoomTypeId: rtMapping.externalRoomTypeId,
-              externalRatePlanId: rpMapping.externalRatePlanId,
-              date: rate.date,
-              amount: rate.amount,
-              currency: rate.currency,
-            });
-          }
-        }
+      for (const rate of dbRates) {
+        updates.push({
+          externalRoomTypeId: rpMapping.externalRoomTypeId,
+          externalRatePlanId: rpMapping.externalRatePlanId,
+          date: rate.date,
+          amount: rate.amount,
+          currency: rate.currency,
+        });
       }
 
       if (updates.length > 0) {
@@ -259,53 +240,33 @@ export const channelManagerSyncService = {
       }
 
       for (const rpMapping of rpMappings) {
-        // If the rate plan has an associated external room type, only push to that room
-        if (rpMapping.externalRoomTypeId) {
-          const localRoomTypeId = extRoomToLocal.get(rpMapping.externalRoomTypeId);
-          if (!localRoomTypeId) {
-            console.warn(`[ChannelManager] fullSync: rate plan ${rpMapping.externalRatePlanId} → external room ${rpMapping.externalRoomTypeId} has no local room mapping, skipping`);
-            continue;
-          }
+        if (!rpMapping.externalRoomTypeId) {
+          console.warn(`[ChannelManager] fullSync: rate plan ${rpMapping.externalRatePlanId} has no externalRoomTypeId — skipping. Re-run Provision to fix.`);
+          continue;
+        }
 
-          const dbRates = await rateRepo.findByRatePlanAndRoomType(
-            organizationId,
-            rpMapping.ratePlanId,
-            localRoomTypeId,
-            today,
-            endDate,
-          );
+        const localRoomTypeId = extRoomToLocal.get(rpMapping.externalRoomTypeId);
+        if (!localRoomTypeId) {
+          console.warn(`[ChannelManager] fullSync: rate plan ${rpMapping.externalRatePlanId} → external room ${rpMapping.externalRoomTypeId} has no local room mapping, skipping`);
+          continue;
+        }
 
-          for (const rate of dbRates) {
-            rateUpdates.push({
-              externalRoomTypeId: rpMapping.externalRoomTypeId,
-              externalRatePlanId: rpMapping.externalRatePlanId,
-              date: rate.date,
-              amount: rate.amount,
-              currency: rate.currency,
-            });
-          }
-        } else {
-          // Legacy: no externalRoomTypeId stored — fallback to all room types
-          // (will be fixed once user re-saves mappings)
-          for (const rtMapping of rtMappings) {
-            const dbRates = await rateRepo.findByRatePlanAndRoomType(
-              organizationId,
-              rpMapping.ratePlanId,
-              rtMapping.roomTypeId,
-              today,
-              endDate,
-            );
+        const dbRates = await rateRepo.findByRatePlanAndRoomType(
+          organizationId,
+          rpMapping.ratePlanId,
+          localRoomTypeId,
+          today,
+          endDate,
+        );
 
-            for (const rate of dbRates) {
-              rateUpdates.push({
-                externalRoomTypeId: rtMapping.externalRoomTypeId,
-                externalRatePlanId: rpMapping.externalRatePlanId,
-                date: rate.date,
-                amount: rate.amount,
-                currency: rate.currency,
-              });
-            }
-          }
+        for (const rate of dbRates) {
+          rateUpdates.push({
+            externalRoomTypeId: rpMapping.externalRoomTypeId,
+            externalRatePlanId: rpMapping.externalRatePlanId,
+            date: rate.date,
+            amount: rate.amount,
+            currency: rate.currency,
+          });
         }
       }
 

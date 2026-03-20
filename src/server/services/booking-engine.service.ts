@@ -150,6 +150,23 @@ export const bookingEngineService = {
         // Only include rate plan if we have rates for all nights
         if (rateRows.length !== nights) continue;
 
+        // Validate restrictions: minStay, maxStay, closedToArrival, closedToDeparture
+        const maxMinStay = Math.max(...rateRows.map((r) => r.minStay));
+        if (nights < maxMinStay) continue;
+
+        const minMaxStay = rateRows.some((r) => r.maxStay !== null)
+          ? Math.min(...rateRows.filter((r) => r.maxStay !== null).map((r) => r.maxStay!))
+          : null;
+        if (minMaxStay !== null && nights > minMaxStay) continue;
+
+        // Check closedToArrival on check-in date
+        const checkInRate = rateRows.find((r) => r.date === checkInDate);
+        if (checkInRate?.closedToArrival) continue;
+
+        // Check closedToDeparture on the last night (night before check-out)
+        const lastNightRate = rateRows[rateRows.length - 1];
+        if (lastNightRate?.closedToDeparture) continue;
+
         const nightlyRates: NightlyRate[] = rateRows.map((r) => ({
           date: r.date,
           amount: parseFloat(r.amount),
@@ -366,6 +383,37 @@ export const bookingEngineService = {
       if (rateRows.length !== nights) {
         throw new ConflictError(
           `Rates not available for all nights for rate plan ${rp.name}`,
+        );
+      }
+
+      // Validate restrictions
+      const maxMinStay = Math.max(...rateRows.map((r) => r.minStay));
+      if (nights < maxMinStay) {
+        throw new ConflictError(
+          `Minimum stay of ${maxMinStay} nights required for rate plan ${rp.name}`,
+        );
+      }
+
+      const minMaxStay = rateRows.some((r) => r.maxStay !== null)
+        ? Math.min(...rateRows.filter((r) => r.maxStay !== null).map((r) => r.maxStay!))
+        : null;
+      if (minMaxStay !== null && nights > minMaxStay) {
+        throw new ConflictError(
+          `Maximum stay of ${minMaxStay} nights exceeded for rate plan ${rp.name}`,
+        );
+      }
+
+      const checkInRate = rateRows.find((r) => r.date === input.checkIn);
+      if (checkInRate?.closedToArrival) {
+        throw new ConflictError(
+          `Arrival not allowed on ${input.checkIn} for rate plan ${rp.name}`,
+        );
+      }
+
+      const lastNightRate = rateRows[rateRows.length - 1];
+      if (lastNightRate?.closedToDeparture) {
+        throw new ConflictError(
+          `Departure not allowed on ${input.checkOut} for rate plan ${rp.name}`,
         );
       }
 

@@ -88,6 +88,11 @@ export default async function ReservationPage({ params }: ReservationPageProps) 
         nationality: guest.nationality,
         documentType: guest.documentType,
         documentNumber: guest.documentNumber,
+        dateOfBirth: guest.dateOfBirth,
+        address: guest.address as Record<string, string> | null,
+        notes: guest.notes,
+        totalStays: guest.totalStays,
+        totalRevenue: guest.totalRevenue,
       }}
       roomType={{
         id: roomType.id,

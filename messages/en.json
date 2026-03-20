@@ -351,19 +351,22 @@
     "checkOut": "Check-out",
     "nights": "Nights",
     "roomType": "Room Type",
-    "unit": "Unit",
+    "unit": "Room",
+    "details": "Details",
     "guests": "Guests",
     "source": "Source",
     "total": "Total",
     "folioSummary": "Folio Summary",
     "paid": "Paid",
     "balance": "Balance",
-    "viewFolio": "View Folio",
+    "viewFolio": "View Full Folio",
     "noFolio": "No folio created yet",
     "specialRequests": "Special Requests",
     "internalNotes": "Internal Notes",
     "doCheckIn": "Check In",
     "doCheckOut": "Check Out",
+    "processing": "Processing...",
+    "viewFullReservation": "View full reservation",
     "adults": "{count} {count, plural, one {adult} other {adults}}",
     "children": "{count} {count, plural, one {child} other {children}}",
     "unassigned": "Unassigned"
@@ -410,12 +413,20 @@
     "statusChangeFailed": "Status change failed"
   },
   "reservationPopover": {
-    "checkIn": "Check In",
-    "checkOut": "Check Out",
+    "checkIn": "Check-in",
+    "checkOut": "Check-out",
+    "night": "night",
     "nights": "nights",
-    "viewDetails": "Details",
+    "totalAmount": "Total amount",
+    "viewDetails": "View details",
     "unassign": "Unassign",
-    "unknownGuest": "Unknown Guest"
+    "unassigned": "No room assigned",
+    "unknownGuest": "Unknown Guest",
+    "arrivesToday": "Arrives today",
+    "arrivesTomorrow": "Arrives tomorrow",
+    "departsToday": "Departs today",
+    "nightRemaining": "night remaining",
+    "nightsRemaining": "nights remaining"
   },
   "cellAction": {
     "newReservation": "New Reservation",
@@ -461,7 +472,8 @@
     "cancel": "Cancel",
     "saveSuccess": "Rates updated",
     "saveSuccessDesc": "{count} rate records updated",
-    "saveError": "Failed to update rates"
+    "saveError": "Failed to update rates",
+    "applyToAllRatePlans": "Apply to all rate plans"
   },
   "calendarInsights": {
     "title": "Quick Insights",

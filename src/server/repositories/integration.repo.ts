@@ -217,6 +217,28 @@ export const ratePlanMappingRepo = {
         ),
       );
   },
+
+  /**
+   * Update externalRoomTypeId for a rate plan mapping identified by its externalRatePlanId.
+   * Used after provisioning discovers which room each rate belongs to.
+   */
+  async updateExternalRoomTypeId(
+    organizationId: string,
+    integrationId: string,
+    externalRatePlanId: string,
+    externalRoomTypeId: string,
+  ) {
+    return db
+      .update(ratePlanMappings)
+      .set({ externalRoomTypeId, updatedAt: new Date() })
+      .where(
+        and(
+          eq(ratePlanMappings.organizationId, organizationId),
+          eq(ratePlanMappings.integrationId, integrationId),
+          eq(ratePlanMappings.externalRatePlanId, externalRatePlanId),
+        ),
+      );
+  },
 };
 
 export const channelManagerLogRepo = {

@@ -760,17 +760,15 @@ export function ChannelsClient({ propertyIntegrations }: Props) {
               </div>
             </div>
 
-            {/* Provision button — only show when no external rooms exist */}
-            {externalRoomTypes.length === 0 && (
-              <button
-                onClick={handleProvisionContent}
-                disabled={provisioning}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50 transition-colors"
-              >
-                <span className="material-icons text-sm">{provisioning ? 'hourglass_top' : 'cloud_upload'}</span>
-                {provisioning ? t('provisioning') : t('provisionContent')}
-              </button>
-            )}
+            {/* Provision button — always visible so content can be re-provisioned */}
+            <button
+              onClick={handleProvisionContent}
+              disabled={provisioning}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50 transition-colors"
+            >
+              <span className="material-icons text-sm">{provisioning ? 'hourglass_top' : 'cloud_upload'}</span>
+              {provisioning ? t('provisioning') : t('provisionContent')}
+            </button>
           </div>
 
           {/* Provision result message */}

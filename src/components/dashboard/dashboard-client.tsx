@@ -12,6 +12,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
+import { ClientOnly } from '@/components/ui/client-only';
 
 // ── Types ──
 
@@ -303,82 +304,84 @@ export function DashboardClient({
           </div>
 
           <div className="h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
-              {chartView === 'occupancy' ? (
-                <AreaChart data={dailyOccupancy}>
-                  <defs>
-                    <linearGradient id="occGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#137fec" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#137fec" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" strokeOpacity={0.5} />
-                  <XAxis
-                    dataKey="date"
-                    tickFormatter={fmtChartDate}
-                    tick={{ fontSize: 11, fill: '#94a3b8' }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    domain={[0, 100]}
-                    tickFormatter={(v: number) => `${v}%`}
-                    tick={{ fontSize: 11, fill: '#94a3b8' }}
-                    axisLine={false}
-                    tickLine={false}
-                    width={45}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#1a2632',
-                      border: '1px solid #334155',
-                      borderRadius: '8px',
-                      fontSize: '12px',
-                      color: '#fff',
-                    }}
-                    formatter={(value: number | undefined) => [`${value ?? 0}%`, 'Occupancy']}
-                    labelFormatter={(label) => fmtChartDate(String(label ?? ''))}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="rate"
-                    stroke="#137fec"
-                    strokeWidth={2}
-                    fill="url(#occGrad)"
-                  />
-                </AreaChart>
-              ) : (
-                <BarChart data={dailyRevenue}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" strokeOpacity={0.5} />
-                  <XAxis
-                    dataKey="date"
-                    tickFormatter={fmtChartDate}
-                    tick={{ fontSize: 11, fill: '#94a3b8' }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    tickFormatter={(v: number) => `${v} €`}
-                    tick={{ fontSize: 11, fill: '#94a3b8' }}
-                    axisLine={false}
-                    tickLine={false}
-                    width={55}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#1a2632',
-                      border: '1px solid #334155',
-                      borderRadius: '8px',
-                      fontSize: '12px',
-                      color: '#fff',
-                    }}
-                    formatter={(value: number | undefined) => [`${fmtCurrency(value ?? 0)} €`, 'Revenue']}
-                    labelFormatter={(label) => fmtChartDate(String(label ?? ''))}
-                  />
-                  <Bar dataKey="revenue" fill="#137fec" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              )}
-            </ResponsiveContainer>
+            <ClientOnly fallback={<div className="h-full w-full animate-pulse rounded-lg bg-slate-100 dark:bg-slate-700" />}>
+              <ResponsiveContainer width="100%" height="100%">
+                {chartView === 'occupancy' ? (
+                  <AreaChart data={dailyOccupancy}>
+                    <defs>
+                      <linearGradient id="occGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#137fec" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#137fec" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" strokeOpacity={0.5} />
+                    <XAxis
+                      dataKey="date"
+                      tickFormatter={fmtChartDate}
+                      tick={{ fontSize: 11, fill: '#94a3b8' }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      domain={[0, 100]}
+                      tickFormatter={(v: number) => `${v}%`}
+                      tick={{ fontSize: 11, fill: '#94a3b8' }}
+                      axisLine={false}
+                      tickLine={false}
+                      width={45}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#1a2632',
+                        border: '1px solid #334155',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        color: '#fff',
+                      }}
+                      formatter={(value: number | undefined) => [`${value ?? 0}%`, 'Occupancy']}
+                      labelFormatter={(label) => fmtChartDate(String(label ?? ''))}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="rate"
+                      stroke="#137fec"
+                      strokeWidth={2}
+                      fill="url(#occGrad)"
+                    />
+                  </AreaChart>
+                ) : (
+                  <BarChart data={dailyRevenue}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" strokeOpacity={0.5} />
+                    <XAxis
+                      dataKey="date"
+                      tickFormatter={fmtChartDate}
+                      tick={{ fontSize: 11, fill: '#94a3b8' }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      tickFormatter={(v: number) => `${v} €`}
+                      tick={{ fontSize: 11, fill: '#94a3b8' }}
+                      axisLine={false}
+                      tickLine={false}
+                      width={55}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#1a2632',
+                        border: '1px solid #334155',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        color: '#fff',
+                      }}
+                      formatter={(value: number | undefined) => [`${fmtCurrency(value ?? 0)} €`, 'Revenue']}
+                      labelFormatter={(label) => fmtChartDate(String(label ?? ''))}
+                    />
+                    <Bar dataKey="revenue" fill="#137fec" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                )}
+              </ResponsiveContainer>
+            </ClientOnly>
           </div>
         </div>
 

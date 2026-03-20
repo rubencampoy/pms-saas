@@ -412,6 +412,29 @@ export async function provisionChannelContent(
 
     const result = await provider.provisionContent(config, roomsWithUnits, rates);
 
+    // After provisioning, update externalRoomTypeId on rate plan mappings
+    // using the room→rate relationships discovered from Zodomus
+    if (result.roomRateMappings) {
+      const rpMappings = await ratePlanMappingRepo.findByIntegration(orgId, integrationId);
+      for (const rpMapping of rpMappings) {
+        // Find which room this rate belongs to
+        for (const [roomId, rateIds] of Object.entries(result.roomRateMappings)) {
+          if (rateIds.includes(rpMapping.externalRatePlanId)) {
+            if (rpMapping.externalRoomTypeId !== roomId) {
+              await ratePlanMappingRepo.updateExternalRoomTypeId(
+                orgId,
+                integrationId,
+                rpMapping.externalRatePlanId,
+                roomId,
+              );
+              console.log(`[Provision] Updated rate mapping ${rpMapping.externalRatePlanId} → room ${roomId}`);
+            }
+            break;
+          }
+        }
+      }
+    }
+
     // After provisioning, log the result
     await channelManagerLogRepo.create(orgId, {
       integrationId,

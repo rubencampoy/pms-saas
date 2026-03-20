@@ -77,7 +77,7 @@ export function ReservationBlock({
       title={`${confirmationCode} — ${guestName ?? 'Unknown'} (${status})`}
     >
       <div className="flex-1 min-w-0">
-        <p className="text-xs font-semibold truncate leading-tight">{guestName ?? confirmationCode}</p>
+        <p className="text-[10px] font-bold truncate leading-tight">{guestName ?? confirmationCode}</p>
       </div>
     </div>
   );

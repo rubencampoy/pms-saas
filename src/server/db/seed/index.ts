@@ -448,10 +448,10 @@ async function seed() {
   ];
 
   for (let d = 0; d < 90; d++) {
-    const dateObj = new Date(today);
-    dateObj.setDate(today.getDate() + d);
+    const dateObj = new Date(today.getTime());
+    dateObj.setUTCDate(today.getUTCDate() + d);
     const dateStr = dateObj.toISOString().split('T')[0]!;
-    const dayOfWeek = dateObj.getDay();
+    const dayOfWeek = dateObj.getUTCDay();
     const isWeekend = dayOfWeek === 5 || dayOfWeek === 6; // Fri, Sat
 
     for (const pm of priceMap) {

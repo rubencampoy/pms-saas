@@ -478,11 +478,11 @@ export function UnitRow({
               onBlockClick(block.id, e.clientX, e.clientY);
             }}
           >
-            <span className={`material-icons text-sm mr-1 ${isMaintenance ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>
+            <span className={`material-icons text-[12px] mr-0.5 ${isMaintenance ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>
               {isMaintenance ? 'build' : 'block'}
             </span>
-            <span className={`text-[10px] font-semibold truncate select-none ${isMaintenance ? 'text-amber-700 dark:text-amber-300' : 'text-red-700 dark:text-red-300'}`}>
-              {isMaintenance ? 'Mantenimiento' : 'Bloqueado'}
+            <span className={`text-[9px] font-bold truncate select-none uppercase tracking-wider ${isMaintenance ? 'text-amber-700 dark:text-amber-300' : 'text-red-700 dark:text-red-300'}`}>
+              {isMaintenance ? 'Maintenance' : 'Blocked'}
             </span>
           </div>
         );

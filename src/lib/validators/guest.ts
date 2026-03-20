@@ -26,7 +26,7 @@ export const createGuestSchema = z.object({
       country: z.string().optional(),
     })
     .optional(),
-  vipStatus: z.enum(['none', 'silver', 'gold', 'platinum']).optional(),
+  vipStatus: z.enum(['none', 'silver', 'gold', 'platinum', 'diamond']).optional(),
   notes: z.string().max(2000).optional().or(z.literal('')),
 });
 
@@ -53,7 +53,7 @@ export const updateGuestSchema = z.object({
       country: z.string().optional(),
     })
     .optional(),
-  vipStatus: z.enum(['none', 'silver', 'gold', 'platinum']).optional(),
+  vipStatus: z.enum(['none', 'silver', 'gold', 'platinum', 'diamond']).optional(),
   notes: z.string().max(2000).optional().or(z.literal('')),
 });
 

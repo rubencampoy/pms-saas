@@ -71,7 +71,9 @@ export const rateRepo = {
       closedToDeparture?: boolean;
     },
   ) {
-    const end = new Date(data.endDate);
+    // Use UTC-based date parsing to avoid DST issues
+    // (local setDate + toISOString can produce duplicate dates during DST transitions)
+    const end = new Date(data.endDate + 'T00:00:00Z');
     const fieldsSet = new Set(data.fields);
     const allowedDays = new Set(data.daysOfWeek ?? [0, 1, 2, 3, 4, 5, 6]);
     const allRows: Array<{
@@ -88,10 +90,10 @@ export const rateRepo = {
     }> = [];
 
     for (const roomTypeId of data.roomTypeIds) {
-      const start = new Date(data.startDate);
-      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-        // Filter by day of week (0 = Sun, 6 = Sat)
-        if (!allowedDays.has(d.getDay())) continue;
+      const start = new Date(data.startDate + 'T00:00:00Z');
+      for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
+        // Filter by day of week (0 = Sun, 6 = Sat) — use UTC to stay consistent
+        if (!allowedDays.has(d.getUTCDay())) continue;
         const dateStr = d.toISOString().split('T')[0]!;
         allRows.push({
           organizationId,

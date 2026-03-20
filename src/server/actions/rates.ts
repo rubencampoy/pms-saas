@@ -148,8 +148,14 @@ export async function bulkSetRates(
     revalidatePath('/calendar');
     return { success: true, data: { count: result.length } };
   } catch (error) {
-    console.error('bulkSetRates failed:', error);
-    return { success: false, error: 'An unexpected error occurred' };
+    // Extract the actual PostgreSQL error from Drizzle's error.cause
+    const cause = error instanceof Error && error.cause instanceof Error
+      ? error.cause.message
+      : error instanceof Error
+        ? error.message
+        : String(error);
+    console.error('bulkSetRates failed:', cause, error);
+    return { success: false, error: cause };
   }
 }
 
