@@ -12,9 +12,11 @@ import { ReservationPopover } from './reservation-popover';
 import { CellActionPopover } from './cell-action-popover';
 import { UnassignedPopover } from './unassigned-popover';
 import { useCalendarDnd } from './use-calendar-dnd';
+import type { MoveRequest } from './use-calendar-dnd';
+import { MoveConfirmationDialog, calculateStayPrice } from './move-confirmation-dialog';
 import { ReservationFormDialog } from '@/components/reservations/reservation-form-dialog';
 import type { ReservationFormDefaults } from '@/components/reservations/reservation-form-dialog';
-import { assignUnit, unassignRoom, changeReservationStatus } from '@/server/actions/reservations';
+import { assignUnit, unassignRoom, changeReservationStatus, moveReservation } from '@/server/actions/reservations';
 import { createRoomBlock, deleteRoomBlock, updateRoomBlock } from '@/server/actions/room-blocks';
 import { RoomBlockPopover } from './room-block-popover';
 import { RoomBlockEditDialog } from './room-block-edit-dialog';
@@ -279,29 +281,13 @@ export function CalendarClient({
   // Transition for quick-assign click
   const [, startTransition] = useTransition();
 
-  // --- Optimistic callbacks ---
-  const onOptimisticMove = useCallback(
-    (reservationId: string, targetUnitId: string, newCheckIn: string, newCheckOut: string, newNights: number) => {
-      setOptimisticReservations((prev) =>
-        prev.map((r) =>
-          r.id === reservationId
-            ? { ...r, unitId: targetUnitId, checkInDate: newCheckIn, checkOutDate: newCheckOut, nights: newNights }
-            : r,
-        ),
-      );
-    },
-    [],
-  );
+  // --- Move confirmation dialog state ---
+  const [pendingMove, setPendingMove] = useState<MoveRequest | null>(null);
+  const [moveSubmitting, setMoveSubmitting] = useState(false);
 
-  const onRevert = useCallback(
-    (reservationId: string, sourceUnitId: string, origCheckIn: string, origCheckOut: string, origNights: number) => {
-      setOptimisticReservations((prev) =>
-        prev.map((r) =>
-          r.id === reservationId
-            ? { ...r, unitId: sourceUnitId, checkInDate: origCheckIn, checkOutDate: origCheckOut, nights: origNights }
-            : r,
-        ),
-      );
+  const onMoveRequest = useCallback(
+    (request: MoveRequest) => {
+      setPendingMove(request);
     },
     [],
   );
@@ -357,8 +343,7 @@ export function CalendarClient({
       startDate,
       colWidth,
       sidebarWidth: 0, // Grid columns start at x=0 within the grid container
-      onOptimisticMove,
-      onRevert,
+      onMoveRequest,
       onOptimisticAssign,
       onRevertAssign,
       onOptimisticUnassign,
@@ -387,6 +372,132 @@ export function CalendarClient({
     }
     return map;
   }, [rates]);
+
+  // --- Move confirmation handlers ---
+  const handleConfirmWithPrice = useCallback(async () => {
+    if (!pendingMove || moveSubmitting) return;
+    setMoveSubmitting(true);
+
+    const reservation = optimisticReservations.find((r) => r.id === pendingMove.reservationId);
+    if (!reservation) {
+      setPendingMove(null);
+      setMoveSubmitting(false);
+      return;
+    }
+
+    // Resolve target room type
+    const targetUnit = units.find((u) => u.id === pendingMove.targetUnitId);
+    const targetRoomTypeId = targetUnit?.roomTypeId ?? pendingMove.sourceRoomTypeId;
+
+    // Calculate prices
+    const originalPrice = calculateStayPrice(rateMap, pendingMove.sourceRoomTypeId, pendingMove.origCheckIn, pendingMove.origCheckOut);
+    const newPrice = calculateStayPrice(rateMap, targetRoomTypeId, pendingMove.newCheckIn, pendingMove.newCheckOut);
+    const priceDiff = newPrice - originalPrice;
+    const currentTotal = parseFloat(reservation.totalAmount);
+    const newTotal = currentTotal + priceDiff;
+
+    // Optimistic update
+    setOptimisticReservations((prev) =>
+      prev.map((r) =>
+        r.id === pendingMove.reservationId
+          ? {
+              ...r,
+              unitId: pendingMove.targetUnitId,
+              roomTypeId: targetRoomTypeId,
+              checkInDate: pendingMove.newCheckIn,
+              checkOutDate: pendingMove.newCheckOut,
+              nights: pendingMove.newNights,
+              totalAmount: newTotal.toFixed(2),
+            }
+          : r,
+      ),
+    );
+    setPendingMove(null);
+
+    const result = await moveReservation({
+      reservationId: pendingMove.reservationId,
+      unitId: pendingMove.targetUnitId,
+      checkInDate: pendingMove.newCheckIn,
+      checkOutDate: pendingMove.newCheckOut,
+      newTotalAmount: newTotal.toFixed(2),
+    });
+
+    if (result.success) {
+      toast({ variant: 'success', title: 'Reservation moved' });
+    } else {
+      // Revert
+      setOptimisticReservations((prev) =>
+        prev.map((r) =>
+          r.id === pendingMove.reservationId
+            ? { ...r, unitId: pendingMove.sourceUnitId, roomTypeId: pendingMove.sourceRoomTypeId, checkInDate: pendingMove.origCheckIn, checkOutDate: pendingMove.origCheckOut, nights: pendingMove.origNights, totalAmount: reservation.totalAmount }
+            : r,
+        ),
+      );
+      toast({ variant: 'error', title: 'Move failed', description: result.error });
+    }
+    setMoveSubmitting(false);
+  }, [pendingMove, moveSubmitting, optimisticReservations, units, rateMap]);
+
+  const handleConfirmOverwrite = useCallback(async () => {
+    if (!pendingMove || moveSubmitting) return;
+    setMoveSubmitting(true);
+
+    const reservation = optimisticReservations.find((r) => r.id === pendingMove.reservationId);
+    if (!reservation) {
+      setPendingMove(null);
+      setMoveSubmitting(false);
+      return;
+    }
+
+    // Resolve target room type
+    const targetUnit = units.find((u) => u.id === pendingMove.targetUnitId);
+    const targetRoomTypeId = targetUnit?.roomTypeId ?? pendingMove.sourceRoomTypeId;
+
+    // Optimistic update (keep original totalAmount)
+    setOptimisticReservations((prev) =>
+      prev.map((r) =>
+        r.id === pendingMove.reservationId
+          ? {
+              ...r,
+              unitId: pendingMove.targetUnitId,
+              roomTypeId: targetRoomTypeId,
+              checkInDate: pendingMove.newCheckIn,
+              checkOutDate: pendingMove.newCheckOut,
+              nights: pendingMove.newNights,
+            }
+          : r,
+      ),
+    );
+    setPendingMove(null);
+
+    const result = await moveReservation({
+      reservationId: pendingMove.reservationId,
+      unitId: pendingMove.targetUnitId,
+      checkInDate: pendingMove.newCheckIn,
+      checkOutDate: pendingMove.newCheckOut,
+    });
+
+    if (result.success) {
+      toast({ variant: 'success', title: 'Reservation moved' });
+    } else {
+      // Revert
+      setOptimisticReservations((prev) =>
+        prev.map((r) =>
+          r.id === pendingMove.reservationId
+            ? { ...r, unitId: pendingMove.sourceUnitId, roomTypeId: pendingMove.sourceRoomTypeId, checkInDate: pendingMove.origCheckIn, checkOutDate: pendingMove.origCheckOut, nights: pendingMove.origNights }
+            : r,
+        ),
+      );
+      toast({ variant: 'error', title: 'Move failed', description: result.error });
+    }
+    setMoveSubmitting(false);
+  }, [pendingMove, moveSubmitting, optimisticReservations, units]);
+
+  const handleCancelMove = useCallback(() => {
+    if (!moveSubmitting) {
+      setPendingMove(null);
+    }
+  }, [moveSubmitting]);
 
   // Panel selection state
   const [selectedReservationId, setSelectedReservationId] = useState<string | null>(null);
@@ -1001,7 +1112,9 @@ export function CalendarClient({
     let startIdx = 0;
     let count = 0;
     for (let i = 0; i < days.length; i++) {
-      const label = format(days[i], 'MMM yyyy').toUpperCase();
+      const day = days[i];
+      if (!day) continue;
+      const label = format(day, 'MMM yyyy').toUpperCase();
       if (label !== current) {
         if (current) spans.push({ label: current, startIndex: startIdx, count });
         current = label;
@@ -1017,7 +1130,7 @@ export function CalendarClient({
 
   // Track visible month label based on scroll position
   const [visibleMonthLabel, setVisibleMonthLabel] = useState(() => {
-    if (days.length > 0) return format(days[0], 'MMM yyyy').toUpperCase();
+    if (days.length > 0 && days[0]) return format(days[0], 'MMM yyyy').toUpperCase();
     return '';
   });
 
@@ -1031,7 +1144,9 @@ export function CalendarClient({
       const scrollLeft = grid.scrollLeft;
       const visibleDayIndex = Math.floor(scrollLeft / COL_WIDTH);
       if (visibleDayIndex >= 0 && visibleDayIndex < days.length) {
-        const label = format(days[visibleDayIndex], 'MMM yyyy').toUpperCase();
+        const visibleDay = days[visibleDayIndex];
+        if (!visibleDay) return;
+        const label = format(visibleDay, 'MMM yyyy').toUpperCase();
         setVisibleMonthLabel(label);
       }
     }
@@ -1356,7 +1471,7 @@ export function CalendarClient({
                 className="flex-shrink-0 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 z-30 shadow-[4px_0_24px_-12px_rgba(0,0,0,0.1)]"
                 style={{ width: SIDEBAR_WIDTH }}
               >
-                {groupedUnits.map((group, groupIndex) => (
+                {groupedUnits.map((group) => (
                   <div key={group.roomType.id}>
                     <div
                       className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between px-4"
@@ -1429,7 +1544,7 @@ export function CalendarClient({
                   </div>
 
                   {/* Room type groups with rows */}
-                  {groupedUnits.map((group, groupIndex) => {
+                  {groupedUnits.map((group) => {
                     const rtAvail = availabilityByRoomTypeDay.get(group.roomType.id);
                     return (
                       <div key={group.roomType.id}>
@@ -1700,6 +1815,38 @@ export function CalendarClient({
           onClose={() => setShowNewBooking(false)}
         />
       )}
+
+      {/* Move Confirmation Dialog */}
+      {pendingMove && (() => {
+        const reservation = optimisticReservations.find((r) => r.id === pendingMove.reservationId);
+        if (!reservation) return null;
+
+        const sourceRt = roomTypes.find((rt) => rt.id === pendingMove.sourceRoomTypeId);
+        const sourceUnit = units.find((u) => u.id === pendingMove.sourceUnitId);
+        const targetUnit = units.find((u) => u.id === pendingMove.targetUnitId);
+        const targetRoomTypeId = targetUnit?.roomTypeId ?? pendingMove.sourceRoomTypeId;
+        const targetRt = roomTypes.find((rt) => rt.id === targetRoomTypeId);
+
+        const originalPrice = calculateStayPrice(rateMap, pendingMove.sourceRoomTypeId, pendingMove.origCheckIn, pendingMove.origCheckOut);
+        const newPrice = calculateStayPrice(rateMap, targetRoomTypeId, pendingMove.newCheckIn, pendingMove.newCheckOut);
+
+        return (
+          <MoveConfirmationDialog
+            moveRequest={pendingMove}
+            sourceRoomTypeName={sourceRt?.name ?? '—'}
+            sourceUnitName={sourceUnit?.name ?? '—'}
+            targetRoomTypeName={targetRt?.name ?? '—'}
+            targetUnitName={targetUnit?.name ?? '—'}
+            originalPrice={originalPrice}
+            newPrice={newPrice}
+            currentTotalAmount={parseFloat(reservation.totalAmount)}
+            onConfirmWithPrice={handleConfirmWithPrice}
+            onConfirmOverwrite={handleConfirmOverwrite}
+            onCancel={handleCancelMove}
+            isSubmitting={moveSubmitting}
+          />
+        );
+      })()}
     </div>
   );
 }
