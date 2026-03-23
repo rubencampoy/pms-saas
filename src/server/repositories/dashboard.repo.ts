@@ -1,5 +1,5 @@
 import { db } from '@/server/db';
-import { reservations, units, folios, folioLineItems, guests, housekeepingTasks } from '@/server/db/schema';
+import { reservations, units, folios, folioLineItems, guests, housekeepingTasks, roomTypes } from '@/server/db/schema';
 import { and, eq, sql, gte, lte, inArray, count } from 'drizzle-orm';
 
 export const dashboardRepo = {
@@ -435,5 +435,126 @@ export const dashboardRepo = {
       .where(and(...conditions))
       .orderBy(sql`${reservations.createdAt} DESC`)
       .limit(limit);
+  },
+
+  /**
+   * Today's arrivals with guest + room details
+   */
+  async getTodayArrivals(organizationId: string, date: string, propertyId?: string) {
+    const conditions = [
+      eq(reservations.organizationId, organizationId),
+      eq(reservations.checkInDate, date),
+      inArray(reservations.status, ['confirmed', 'checked_in']),
+    ];
+    if (propertyId) conditions.push(eq(reservations.propertyId, propertyId));
+
+    return db
+      .select({
+        id: reservations.id,
+        confirmationCode: reservations.confirmationCode,
+        status: reservations.status,
+        checkInDate: reservations.checkInDate,
+        checkOutDate: reservations.checkOutDate,
+        nights: reservations.nights,
+        adults: reservations.adults,
+        children: reservations.children,
+        totalAmount: reservations.totalAmount,
+        guestFirstName: guests.firstName,
+        guestLastName: guests.lastName,
+        guestEmail: guests.email,
+        unitName: units.name,
+        roomTypeName: roomTypes.name,
+        roomTypeCode: roomTypes.code,
+      })
+      .from(reservations)
+      .innerJoin(guests, eq(guests.id, reservations.guestId))
+      .innerJoin(roomTypes, eq(roomTypes.id, reservations.roomTypeId))
+      .leftJoin(units, eq(units.id, reservations.unitId))
+      .where(and(...conditions))
+      .orderBy(reservations.createdAt);
+  },
+
+  /**
+   * Today's departures with guest + room details
+   */
+  async getTodayDepartures(organizationId: string, date: string, propertyId?: string) {
+    const conditions = [
+      eq(reservations.organizationId, organizationId),
+      eq(reservations.checkOutDate, date),
+      inArray(reservations.status, ['checked_in', 'checked_out']),
+    ];
+    if (propertyId) conditions.push(eq(reservations.propertyId, propertyId));
+
+    return db
+      .select({
+        id: reservations.id,
+        confirmationCode: reservations.confirmationCode,
+        status: reservations.status,
+        checkInDate: reservations.checkInDate,
+        checkOutDate: reservations.checkOutDate,
+        nights: reservations.nights,
+        adults: reservations.adults,
+        children: reservations.children,
+        totalAmount: reservations.totalAmount,
+        guestFirstName: guests.firstName,
+        guestLastName: guests.lastName,
+        guestEmail: guests.email,
+        unitName: units.name,
+        roomTypeName: roomTypes.name,
+        roomTypeCode: roomTypes.code,
+      })
+      .from(reservations)
+      .innerJoin(guests, eq(guests.id, reservations.guestId))
+      .innerJoin(roomTypes, eq(roomTypes.id, reservations.roomTypeId))
+      .leftJoin(units, eq(units.id, reservations.unitId))
+      .where(and(...conditions))
+      .orderBy(reservations.createdAt);
+  },
+
+  /**
+   * Room status grid: all active rooms with occupancy + housekeeping status
+   */
+  async getRoomStatusGrid(organizationId: string, date: string, propertyId?: string) {
+    const unitConditions = [
+      eq(units.organizationId, organizationId),
+      eq(units.isActive, true),
+    ];
+    if (propertyId) unitConditions.push(eq(units.propertyId, propertyId));
+
+    const rooms = await db
+      .select({
+        id: units.id,
+        name: units.name,
+        floor: units.floor,
+        status: units.status,
+        housekeepingStatus: units.housekeepingStatus,
+        roomTypeName: roomTypes.name,
+        roomTypeCode: roomTypes.code,
+      })
+      .from(units)
+      .innerJoin(roomTypes, eq(roomTypes.id, units.roomTypeId))
+      .where(and(...unitConditions))
+      .orderBy(units.sortOrder, units.name);
+
+    // Find which rooms are occupied today
+    const resConditions = [
+      eq(reservations.organizationId, organizationId),
+      eq(reservations.status, 'checked_in'),
+      lte(reservations.checkInDate, date),
+      gte(reservations.checkOutDate, date),
+    ];
+    if (propertyId) resConditions.push(eq(reservations.propertyId, propertyId));
+
+    const occupiedUnits = await db
+      .select({ unitId: reservations.unitId })
+      .from(reservations)
+      .where(and(...resConditions, sql`${reservations.unitId} IS NOT NULL`));
+
+    const occupiedSet = new Set(occupiedUnits.map((r) => r.unitId));
+
+    return rooms.map((room) => ({
+      ...room,
+      isOccupied: occupiedSet.has(room.id),
+    }));
   },
 };

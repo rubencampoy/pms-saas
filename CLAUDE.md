@@ -200,11 +200,15 @@ npm run build            # Production build
 ```json
 {
   "stitch": {
-    "command": "npx",
-    "args": ["@_davideast/stitch-mcp", "proxy"]
+    "type": "http",
+    "url": "https://stitch.googleapis.com/mcp",
+    "headers": {
+      "X-Goog-Api-Key": "AQ.Ab8RN6ItyPIfm3nVNvSuidph-ZHJQrOuM9EaPgKYbChBWoB5Tg"
+    }
   }
 }
 ```
+
 **Use for:** Fetching screen designs, extracting design tokens, generating new screens.
 
 **Key workflow patterns:**

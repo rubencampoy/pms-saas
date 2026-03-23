@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useState, useTransition } from 'react';
-import { moveReservation, assignUnit, unassignRoom } from '@/server/actions/reservations';
+import { assignUnit, unassignRoom } from '@/server/actions/reservations';
 import { toast } from '@/lib/hooks/use-toast';
 import { addDays, format } from 'date-fns';
 
@@ -16,12 +16,25 @@ export interface DragState {
   grabOffsetDays: number;
 }
 
+/** Data package for a pending move that needs user confirmation */
+export interface MoveRequest {
+  reservationId: string;
+  sourceUnitId: string;
+  sourceRoomTypeId: string;
+  origCheckIn: string;
+  origCheckOut: string;
+  origNights: number;
+  targetUnitId: string;
+  newCheckIn: string;
+  newCheckOut: string;
+  newNights: number;
+}
+
 interface UseCalendarDndOptions {
   startDate: Date;
   colWidth: number;
   sidebarWidth: number;
-  onOptimisticMove: (reservationId: string, targetUnitId: string, newCheckIn: string, newCheckOut: string, newNights: number) => void;
-  onRevert: (reservationId: string, sourceUnitId: string, origCheckIn: string, origCheckOut: string, origNights: number) => void;
+  onMoveRequest: (request: MoveRequest) => void;
   onOptimisticAssign: (reservationId: string, unitId: string) => void;
   onRevertAssign: (reservationId: string) => void;
   onOptimisticUnassign: (reservationId: string) => void;
@@ -32,8 +45,7 @@ export function useCalendarDnd({
   startDate,
   colWidth,
   sidebarWidth,
-  onOptimisticMove,
-  onRevert,
+  onMoveRequest,
   onOptimisticAssign,
   onRevertAssign,
   onOptimisticUnassign,
@@ -80,9 +92,9 @@ export function useCalendarDnd({
   const handleDrop = useCallback(
     (targetUnitId: string, e: React.DragEvent) => {
       if (!dragState) return;
-      const { reservationId, sourceUnitId, checkInDate: origCheckIn, checkOutDate: origCheckOut, nights } = dragState;
+      const { reservationId, sourceUnitId, roomTypeId, checkInDate: origCheckIn, checkOutDate: origCheckOut, nights } = dragState;
 
-      // Drag from pending panel → assign (keep original dates)
+      // Drag from pending panel → assign (keep original dates, no confirmation needed)
       if (sourceUnitId === '') {
         onOptimisticAssign(reservationId, targetUnitId);
         setDragState(null);
@@ -99,7 +111,7 @@ export function useCalendarDnd({
         return;
       }
 
-      // Drag between timeline rows → move
+      // Drag between timeline rows → defer to confirmation dialog
       const newCheckIn = computeNewCheckIn(e, dragState.grabOffsetDays);
       const newCheckOut = addDays(newCheckIn, nights);
       const newCheckInStr = format(newCheckIn, 'yyyy-MM-dd');
@@ -111,31 +123,22 @@ export function useCalendarDnd({
         return;
       }
 
-      // Optimistic move
-      onOptimisticMove(reservationId, targetUnitId, newCheckInStr, newCheckOutStr, nights);
-      setDragState(null);
-
-      startTransition(async () => {
-        const result = await moveReservation({
-          reservationId,
-          unitId: targetUnitId,
-          checkInDate: newCheckInStr,
-          checkOutDate: newCheckOutStr,
-        });
-
-        if (result.success) {
-          toast({ variant: 'success', title: 'Reservation moved' });
-        } else {
-          onRevert(reservationId, sourceUnitId, origCheckIn, origCheckOut, nights);
-          toast({
-            variant: 'error',
-            title: 'Move failed',
-            description: result.error,
-          });
-        }
+      // Package move data and defer to confirmation dialog
+      onMoveRequest({
+        reservationId,
+        sourceUnitId,
+        sourceRoomTypeId: roomTypeId,
+        origCheckIn,
+        origCheckOut,
+        origNights: nights,
+        targetUnitId,
+        newCheckIn: newCheckInStr,
+        newCheckOut: newCheckOutStr,
+        newNights: nights,
       });
+      setDragState(null);
     },
-    [dragState, computeNewCheckIn, onOptimisticMove, onRevert, onOptimisticAssign, onRevertAssign, startTransition],
+    [dragState, computeNewCheckIn, onMoveRequest, onOptimisticAssign, onRevertAssign, startTransition],
   );
 
   /** Start dragging from the pending panel */
