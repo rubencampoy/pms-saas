@@ -203,7 +203,7 @@ npm run build            # Production build
     "type": "http",
     "url": "https://stitch.googleapis.com/mcp",
     "headers": {
-      "X-Goog-Api-Key": "AQ.Ab8RN6ItyPIfm3nVNvSuidph-ZHJQrOuM9EaPgKYbChBWoB5Tg"
+      "X-Goog-Api-Key": "${STITCH_API_KEY}"
     }
   }
 }
