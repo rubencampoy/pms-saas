@@ -190,25 +190,22 @@ export const channelManagerSyncService = {
       console.log(`[ChannelManager] fullSync: ${rtMappings.length} room mappings, ${rpMappings.length} rate mappings`);
       console.log(`[ChannelManager] fullSync: syncing dates ${today} → ${endDate}`);
 
-      // Push availability for all mapped room types
+      // Push availability for all mapped room types (batch: 2 queries per room type instead of 730)
       const availUpdates: AvailabilityUpdate[] = [];
 
       for (const rtMapping of rtMappings) {
-        for (let d = new Date(today); d <= new Date(endDate); d = addDays(d, 1)) {
-          const dateStr = format(d, 'yyyy-MM-dd');
-          const nextDay = format(addDays(d, 1), 'yyyy-MM-dd');
+        const availMap = await reservationRepo.batchAvailability(
+          organizationId,
+          rtMapping.roomTypeId,
+          today,
+          endDate,
+        );
 
-          const availability = await reservationRepo.countAvailableUnits(
-            organizationId,
-            rtMapping.roomTypeId,
-            dateStr,
-            nextDay,
-          );
-
+        for (const [dateStr, available] of availMap) {
           availUpdates.push({
             externalRoomTypeId: rtMapping.externalRoomTypeId,
             date: dateStr,
-            available: availability.availableUnits,
+            available,
           });
         }
       }

@@ -6,6 +6,8 @@ import { triggerSyncSchema } from '@/lib/validators/integrations';
 import { integrationRepo } from '@/server/repositories/integration.repo';
 import { channelManagerSyncService } from '@/server/services/channel-manager-sync.service';
 
+export const maxDuration = 60;
+
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();

@@ -6,6 +6,8 @@ import { channelManagerSyncService } from '@/server/services/channel-manager-syn
 import { zodomusProvider } from '@/lib/channel-manager/providers/zodomus';
 import { SyncDirection, SyncAction, SyncStatus } from '@/lib/constants/channel-manager';
 
+export const maxDuration = 60;
+
 export async function POST(request: NextRequest) {
   const webhookToken = request.headers.get('x-webhook-token');
   if (!webhookToken) {
