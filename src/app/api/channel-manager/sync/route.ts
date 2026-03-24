@@ -1,3 +1,4 @@
+import { after } from 'next/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { requireRole } from '@/lib/auth/rbac';
@@ -26,10 +27,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Integration not found' }, { status: 404 });
     }
 
-    // Fire-and-forget: full sync runs in background
-    channelManagerSyncService
-      .fullSync(orgId, integration.propertyId)
-      .catch((err) => console.error('[API:sync] Full sync failed:', err));
+    // Run sync after response is sent (keeps serverless function alive on Vercel)
+    after(async () => {
+      try {
+        await channelManagerSyncService.fullSync(orgId, integration.propertyId);
+      } catch (err) {
+        console.error('[API:sync] Full sync failed:', err);
+      }
+    });
 
     return NextResponse.json({ status: 'accepted' }, { status: 202 });
   } catch (error) {
