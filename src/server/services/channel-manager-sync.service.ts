@@ -226,66 +226,79 @@ export const channelManagerSyncService = {
       }
 
       // Push rates only for valid room-rate combinations.
-      // Each rate plan mapping stores which external room type it belongs to.
-      // Only push rates where the external room type matches.
-      const rateUpdates: RateUpdate[] = [];
-
-      // Build a lookup: externalRoomTypeId → local roomTypeId
-      const extRoomToLocal = new Map<string, string>();
-      for (const rtMapping of rtMappings) {
-        extRoomToLocal.set(rtMapping.externalRoomTypeId, rtMapping.roomTypeId);
-      }
-
-      for (const rpMapping of rpMappings) {
-        if (!rpMapping.externalRoomTypeId) {
-          console.warn(`[ChannelManager] fullSync: rate plan ${rpMapping.externalRatePlanId} has no externalRoomTypeId — skipping. Re-run Provision to fix.`);
-          continue;
-        }
-
-        const localRoomTypeId = extRoomToLocal.get(rpMapping.externalRoomTypeId);
-        if (!localRoomTypeId) {
-          console.warn(`[ChannelManager] fullSync: rate plan ${rpMapping.externalRatePlanId} → external room ${rpMapping.externalRoomTypeId} has no local room mapping, skipping`);
-          continue;
-        }
-
-        const dbRates = await rateRepo.findByRatePlanAndRoomType(
-          organizationId,
-          rpMapping.ratePlanId,
-          localRoomTypeId,
-          today,
-          endDate,
-        );
-
-        for (const rate of dbRates) {
-          rateUpdates.push({
-            externalRoomTypeId: rpMapping.externalRoomTypeId,
-            externalRatePlanId: rpMapping.externalRatePlanId,
-            date: rate.date,
-            amount: rate.amount,
-            currency: rate.currency,
-          });
-        }
-      }
-
-      console.log(`[ChannelManager] fullSync: ${rateUpdates.length} rate updates to push`);
-
+      console.log(`[ChannelManager] fullSync: starting rates section...`);
       let rateStatus = SyncStatus.SUCCESS;
-      if (rateUpdates.length > 0) {
-        console.log(`[ChannelManager] fullSync: sample rate update:`, JSON.stringify(rateUpdates[0]));
-        const rateResult = await provider.pushRates(config, rateUpdates, log);
-        console.log(`[ChannelManager] fullSync: rates push result: ${rateResult.status}, processed: ${rateResult.updatesProcessed}`);
-        if (rateResult.errorMessage) {
-          console.error(`[ChannelManager] fullSync: rates error: ${rateResult.errorMessage}`);
+
+      try {
+        const rateUpdates: RateUpdate[] = [];
+
+        // Build a lookup: externalRoomTypeId → local roomTypeId
+        const extRoomToLocal = new Map<string, string>();
+        for (const rtMapping of rtMappings) {
+          extRoomToLocal.set(rtMapping.externalRoomTypeId, rtMapping.roomTypeId);
         }
-        rateStatus = rateResult.status;
-      } else {
-        console.log(`[ChannelManager] fullSync: no rate updates to push (no rates in DB for this date range)`);
+
+        console.log(`[ChannelManager] fullSync: processing ${rpMappings.length} rate plan mappings`);
+
+        for (const rpMapping of rpMappings) {
+          if (!rpMapping.externalRoomTypeId) {
+            console.warn(`[ChannelManager] fullSync: rate plan ${rpMapping.externalRatePlanId} has no externalRoomTypeId — skipping. Re-run Provision to fix.`);
+            continue;
+          }
+
+          const localRoomTypeId = extRoomToLocal.get(rpMapping.externalRoomTypeId);
+          if (!localRoomTypeId) {
+            console.warn(`[ChannelManager] fullSync: rate plan ${rpMapping.externalRatePlanId} → external room ${rpMapping.externalRoomTypeId} has no local room mapping, skipping`);
+            continue;
+          }
+
+          console.log(`[ChannelManager] fullSync: fetching rates for plan ${rpMapping.ratePlanId} / room ${localRoomTypeId}`);
+
+          const dbRates = await rateRepo.findByRatePlanAndRoomType(
+            organizationId,
+            rpMapping.ratePlanId,
+            localRoomTypeId,
+            today,
+            endDate,
+          );
+
+          console.log(`[ChannelManager] fullSync: found ${dbRates.length} rates in DB`);
+
+          for (const rate of dbRates) {
+            rateUpdates.push({
+              externalRoomTypeId: rpMapping.externalRoomTypeId,
+              externalRatePlanId: rpMapping.externalRatePlanId,
+              date: rate.date,
+              amount: rate.amount,
+              currency: rate.currency,
+            });
+          }
+        }
+
+        console.log(`[ChannelManager] fullSync: ${rateUpdates.length} rate updates to push`);
+
+        if (rateUpdates.length > 0) {
+          console.log(`[ChannelManager] fullSync: sample rate update:`, JSON.stringify(rateUpdates[0]));
+          const rateResult = await provider.pushRates(config, rateUpdates, log);
+          console.log(`[ChannelManager] fullSync: rates push result: ${rateResult.status}, processed: ${rateResult.updatesProcessed}`);
+          if (rateResult.errorMessage) {
+            console.error(`[ChannelManager] fullSync: rates error: ${rateResult.errorMessage}`);
+          }
+          rateStatus = rateResult.status;
+        } else {
+          console.log(`[ChannelManager] fullSync: no rate updates to push (no rates in DB for this date range)`);
+        }
+      } catch (rateErr) {
+        console.error(`[ChannelManager] fullSync: RATES SECTION CRASHED:`, rateErr instanceof Error ? rateErr.message : rateErr);
+        console.error(`[ChannelManager] fullSync: rate error stack:`, rateErr instanceof Error ? rateErr.stack : 'no stack');
+        rateStatus = SyncStatus.ERROR;
       }
 
       // Use worst status between availability and rates
       const finalStatus = (availStatus === SyncStatus.ERROR || rateStatus === SyncStatus.ERROR)
         ? SyncStatus.ERROR
         : SyncStatus.SUCCESS;
+      console.log(`[ChannelManager] fullSync: final status: ${finalStatus}`);
       await integrationRepo.updateLastSync(
         organizationId,
         integration.id,
