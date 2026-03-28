@@ -11,11 +11,12 @@ export interface CMConfig {
   hotelId: string;
   endpointUrl: string;
   accessType: ZodomusAccessType;
+  isTestMode?: boolean;
   zodomusWebhookUrl?: string;
   zodomusWebhookKey?: string;
   airbnbWebhookUrl?: string;
   airbnbWebhookKey?: string;
-  [key: string]: string | undefined;
+  [key: string]: string | boolean | undefined;
 }
 
 // ── Outbound Updates ──
