@@ -60,14 +60,18 @@ export async function initiateAirbnbHostActivation(
     const existing = await airbnbHostRepo.findByIntegration(orgId, integration.id);
     if (existing) {
       // Return existing OAuth URL
+      console.log('[Airbnb] Host already exists, returning existing OAuth URL. Host status:', existing.hostStatus, 'clientId:', existing.airbnbClientId);
       const config = parseConfig(integration.credentials);
       const isProduction = !config.endpointUrl.includes('test');
       const oauthUrl = buildAirbnbOAuthUrl(existing.airbnbClientId, existing.airbnbToken, isProduction);
+      console.log('[Airbnb] OAuth URL:', oauthUrl);
       return { success: true, data: { airbnbHostId: existing.id, oauthUrl } };
     }
 
     const config = parseConfig(integration.credentials);
+    console.log('[Airbnb] No existing host, calling airbnbActivateHost...');
     const result = await airbnbActivateHost(config);
+    console.log('[Airbnb] airbnbActivateHost result:', JSON.stringify(result));
 
     const host = await airbnbHostRepo.create(orgId, {
       integrationId: integration.id,
@@ -110,10 +114,13 @@ export async function checkAirbnbHostStatus(
     if (!integration) return { success: false, error: 'Integration not found' };
 
     const config = parseConfig(integration.credentials);
+    console.log('[Airbnb] Checking host status for token:', host.airbnbToken);
     const status = await airbnbGetHostStatus(config, host.airbnbToken);
+    console.log('[Airbnb] Host status response:', JSON.stringify(status));
 
     // Map Zodomus status codes: "5" = active
     const newStatus = status.statusCode === '5' ? AirbnbHostStatusEnum.ACTIVE : AirbnbHostStatusEnum.INACTIVE;
+    console.log('[Airbnb] Mapped status:', newStatus, 'statusCode:', status.statusCode);
     await airbnbHostRepo.updateStatus(orgId, host.id, newStatus, status.statusCode);
 
     revalidatePath(SETTINGS_PATH);
