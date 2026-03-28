@@ -8,11 +8,13 @@ import {
   ratePlanMappingRepo,
   channelManagerLogRepo,
 } from '@/server/repositories/integration.repo';
+import { airbnbListingRepo } from '@/server/repositories/airbnb-listing.repo';
 import { reservationRepo } from '@/server/repositories/reservation.repo';
 import { rateRepo } from '@/server/repositories/rate.repo';
 import { guestRepo } from '@/server/repositories/guest.repo';
 import { reservationService } from '@/server/services/reservation.service';
-import type { CMConfig, AvailabilityUpdate, RateUpdate, IncomingReservation, LogCallback } from '@/lib/channel-manager/types';
+import { airbnbPushCalendar } from '@/lib/channel-manager/providers/zodomus';
+import type { CMConfig, AvailabilityUpdate, RateUpdate, IncomingReservation, LogCallback, AirbnbCalendarOperation } from '@/lib/channel-manager/types';
 
 function parseCredentials(encrypted: string): CMConfig {
   const json = decrypt(encrypted);
@@ -390,5 +392,130 @@ export const channelManagerSyncService = {
     );
 
     return reservation;
+  },
+
+  /**
+   * Sync calendar for Airbnb listings.
+   * Airbnb uses a unified calendar API that combines price + availability + restrictions
+   * in a single POST call (different from generic Zodomus push endpoints).
+   */
+  async syncAirbnbCalendar(
+    organizationId: string,
+    propertyId: string,
+    integrationId?: string,
+  ) {
+    let targetIntegrations;
+    if (integrationId) {
+      const integration = await integrationRepo.findById(organizationId, integrationId);
+      targetIntegrations = integration ? [integration] : [];
+    } else {
+      targetIntegrations = await integrationRepo.findActiveByProperty(organizationId, propertyId);
+    }
+
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const endDate = format(addDays(new Date(), MAX_SYNC_DAYS), 'yyyy-MM-dd');
+
+    for (const integration of targetIntegrations) {
+      const config = parseCredentials(integration.credentials);
+      const log = makeLogCallback(organizationId, integration.id);
+
+      // Find activated Airbnb listings for this property
+      const listings = await airbnbListingRepo.findActivatedByProperty(
+        organizationId,
+        propertyId,
+      );
+
+      console.log(`[ChannelManager] syncAirbnbCalendar: ${listings.length} activated listing(s) for property ${propertyId}`);
+
+      for (const listing of listings) {
+        if (!listing.roomTypeId || !listing.airbnbListingId) continue;
+
+        // Get availability per date
+        const availMap = await reservationRepo.batchAvailability(
+          organizationId,
+          listing.roomTypeId,
+          today,
+          endDate,
+        );
+
+        // Get rates for this room type (use first rate plan found)
+        const rpMappings = await ratePlanMappingRepo.findByIntegration(
+          organizationId,
+          integration.id,
+        );
+        const ratePlanMapping = rpMappings.find(
+          (rp) => rp.externalRoomTypeId === listing.airbnbListingId
+            || rp.externalRoomTypeId === listing.airbnbRoomId,
+        );
+
+        // Build a rate lookup map: date → { amount, minStay, maxStay, cta, ctd }
+        const rateMap = new Map<string, { amount: string; minStay: number; maxStay: number | null; closedToArrival: boolean; closedToDeparture: boolean }>();
+        if (ratePlanMapping) {
+          const dbRates = await rateRepo.findByRatePlanAndRoomType(
+            organizationId,
+            ratePlanMapping.ratePlanId,
+            listing.roomTypeId,
+            today,
+            endDate,
+          );
+          for (const rate of dbRates) {
+            rateMap.set(rate.date, {
+              amount: rate.amount,
+              minStay: rate.minStay ?? 1,
+              maxStay: rate.maxStay ?? 0,
+              closedToArrival: rate.closedToArrival ?? false,
+              closedToDeparture: rate.closedToDeparture ?? false,
+            });
+          }
+        }
+
+        // Build calendar operations — batch consecutive dates with same values
+        const operations: AirbnbCalendarOperation[] = [];
+        let currentDate = new Date(today);
+        const end = new Date(endDate);
+
+        while (currentDate <= end) {
+          const dateStr = format(currentDate, 'yyyy-MM-dd');
+          const available = availMap.get(dateStr) ?? 0;
+          const rate = rateMap.get(dateStr);
+
+          const op: AirbnbCalendarOperation = {
+            dates: [`${dateStr}:${dateStr}`],
+            availability: available > 0 ? 'available' : 'unavailable',
+          };
+
+          if (listing.isMultiUnit) {
+            op.availableCount = Math.max(0, available);
+          }
+
+          if (rate) {
+            op.dailyPrice = parseFloat(rate.amount);
+            op.minNights = rate.minStay;
+            if (rate.maxStay && rate.maxStay > 0) {
+              op.maxNights = rate.maxStay;
+            }
+            op.closedToArrival = rate.closedToArrival;
+            op.closedToDeparture = rate.closedToDeparture;
+          }
+
+          operations.push(op);
+          currentDate = addDays(currentDate, 1);
+        }
+
+        // Push to Airbnb (rate-limited)
+        console.log(`[ChannelManager] syncAirbnbCalendar: pushing ${operations.length} operations for listing ${listing.airbnbListingId}`);
+        const result = await airbnbPushCalendar(config, listing.airbnbListingId, operations, log);
+
+        await integrationRepo.updateLastSync(
+          organizationId,
+          integration.id,
+          result.status,
+        );
+
+        if (result.errorMessage) {
+          console.error(`[ChannelManager] syncAirbnbCalendar: error for listing ${listing.airbnbListingId}: ${result.errorMessage}`);
+        }
+      }
+    }
   },
 };

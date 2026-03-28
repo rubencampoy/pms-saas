@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
+import { AirbnbOnboarding } from '@/components/settings/airbnb-onboarding';
 import {
   saveIntegrationConfig,
   validateConnection,
@@ -57,6 +58,21 @@ interface PropertyIntegration {
   ratePlanMappings: RatePlanMapping[];
   localRoomTypes: LocalRoomType[];
   localRatePlans: LocalRatePlan[];
+  airbnbHost?: {
+    id: string;
+    hostStatus: string;
+    hostStatusCode: string | null;
+    oauthCompletedAt: string | null;
+  } | null;
+  airbnbListings?: Array<{
+    id: string;
+    airbnbListingId: string;
+    listingName: string | null;
+    propertyType: string | null;
+    isActivated: boolean;
+    roomTypeId: string | null;
+    propertyId: string | null;
+  }>;
 }
 
 interface LogEntry {
@@ -1092,6 +1108,17 @@ export function ChannelsClient({ propertyIntegrations }: Props) {
             </div>
           )}
         </div>
+      )}
+
+      {/* ── Airbnb Integration ── */}
+      {current.integration && (
+        <AirbnbOnboarding
+          integrationId={current.integration.id}
+          propertyId={current.property.id}
+          airbnbHost={current.airbnbHost ?? null}
+          airbnbListings={current.airbnbListings ?? []}
+          localRoomTypes={current.localRoomTypes.map((rt) => ({ id: rt.id, name: rt.name }))}
+        />
       )}
     </div>
   );

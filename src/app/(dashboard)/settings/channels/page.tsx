@@ -4,6 +4,8 @@ import { propertyRepo } from '@/server/repositories/property.repo';
 import { roomTypeRepo } from '@/server/repositories/room-type.repo';
 import { ratePlanRepo } from '@/server/repositories/rate-plan.repo';
 import { integrationRepo, roomTypeMappingRepo, ratePlanMappingRepo } from '@/server/repositories/integration.repo';
+import { airbnbHostRepo } from '@/server/repositories/airbnb-host.repo';
+import { airbnbListingRepo } from '@/server/repositories/airbnb-listing.repo';
 import { decrypt } from '@/lib/utils/encryption';
 import { ChannelsClient } from '@/components/settings/channels-client';
 import type { CMConfig } from '@/lib/channel-manager/types';
@@ -47,6 +49,12 @@ export default async function ChannelsPage() {
         ratePlanRepo.findByProperty(orgId, property.id),
       ]);
 
+      // Load Airbnb data if available
+      const airbnbHost = await airbnbHostRepo.findByIntegration(orgId, integration.id);
+      const airbnbListings = airbnbHost
+        ? await airbnbListingRepo.findByHost(orgId, airbnbHost.id)
+        : [];
+
       return {
         property,
         integration: {
@@ -62,6 +70,23 @@ export default async function ChannelsPage() {
         ratePlanMappings: rpMappings,
         localRoomTypes,
         localRatePlans,
+        airbnbHost: airbnbHost
+          ? {
+              id: airbnbHost.id,
+              hostStatus: airbnbHost.hostStatus,
+              hostStatusCode: airbnbHost.hostStatusCode,
+              oauthCompletedAt: airbnbHost.oauthCompletedAt?.toISOString() ?? null,
+            }
+          : null,
+        airbnbListings: airbnbListings.map((l) => ({
+          id: l.id,
+          airbnbListingId: l.airbnbListingId,
+          listingName: l.listingName,
+          propertyType: l.propertyType,
+          isActivated: l.isActivated,
+          roomTypeId: l.roomTypeId,
+          propertyId: l.propertyId,
+        })),
       };
     }),
   );
