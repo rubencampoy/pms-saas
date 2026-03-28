@@ -1294,17 +1294,25 @@ async function airbnbPost<T>(config: CMConfig, endpoint: string, body: Record<st
   return parsed as T;
 }
 
-async function airbnbGet<T>(config: CMConfig, endpoint: string, body?: Record<string, unknown>): Promise<T> {
+async function airbnbGet<T>(config: CMConfig, endpoint: string, params?: Record<string, unknown>): Promise<T> {
   await airbnbRateLimiter.throttle();
-  const options: RequestInit = {
-    method: 'GET',
-    headers: buildHeaders(config, 'application/json'),
-  };
-  if (body) {
-    // Zodomus GET endpoints accept JSON body
-    options.body = JSON.stringify(body);
+  // Zodomus docs show GET with JSON body, but fetch() forbids body on GET/HEAD.
+  // Send params as query string instead — Zodomus accepts both forms.
+  let url = `${baseUrl(config)}/${endpoint}`;
+  if (params) {
+    const qs = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) {
+      if (value !== undefined && value !== null) {
+        qs.set(key, String(value));
+      }
+    }
+    const qsStr = qs.toString();
+    if (qsStr) url += `?${qsStr}`;
   }
-  const response = await fetchWithRetry(`${baseUrl(config)}/${endpoint}`, options);
+  const response = await fetchWithRetry(url, {
+    method: 'GET',
+    headers: buildHeaders(config),
+  });
   const text = await response.text();
   const parsed = safeParseJson(text);
   if (isZodomusError(parsed)) {
