@@ -226,13 +226,28 @@ export function AirbnbOnboarding({
         )}
 
         {host && !hostIsActive && !oauthUrl && (
-          <button
-            onClick={handleCheckStatus}
-            disabled={isPending}
-            className="rounded-lg border border-slate-200 dark:border-slate-600 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
-          >
-            {isPending ? 'Checking...' : 'Check Authorization Status'}
-          </button>
+          <div className="space-y-2">
+            <p className="text-xs text-slate-600 dark:text-slate-400">
+              If you haven&apos;t authorized yet, click below to get the authorization link.
+              If you already authorized, check the status.
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleActivateHost}
+                disabled={isPending}
+                className="rounded-lg bg-[#137fec] px-3 py-2 text-sm font-medium text-white hover:bg-[#1171d6] disabled:opacity-50"
+              >
+                {isPending ? 'Loading...' : 'Get Authorization Link'}
+              </button>
+              <button
+                onClick={handleCheckStatus}
+                disabled={isPending}
+                className="rounded-lg border border-slate-200 dark:border-slate-600 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
+              >
+                {isPending ? 'Checking...' : 'Check Authorization Status'}
+              </button>
+            </div>
+          </div>
         )}
       </div>
 
