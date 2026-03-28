@@ -63,6 +63,7 @@ export async function initiateAirbnbHostActivation(
       console.log('[Airbnb] Host already exists, returning existing OAuth URL. Host status:', existing.hostStatus, 'clientId:', existing.airbnbClientId);
       const config = parseConfig(integration.credentials);
       const isProduction = !config.endpointUrl.includes('test');
+      console.log('[Airbnb] endpointUrl:', config.endpointUrl, 'isProduction:', isProduction);
       const oauthUrl = buildAirbnbOAuthUrl(existing.airbnbClientId, existing.airbnbToken, isProduction);
       console.log('[Airbnb] OAuth URL:', oauthUrl);
       return { success: true, data: { airbnbHostId: existing.id, oauthUrl } };
