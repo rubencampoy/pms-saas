@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { setLocale } from '@/server/actions/locale';
 import { logoutAction } from '@/server/actions/auth';
+import { HotelOSLogo } from '@/components/shared/hotel-os-logo';
 import { switchProperty } from '@/server/actions/property-switch';
 import type { Locale } from '@/i18n/request';
 
@@ -189,9 +190,7 @@ export function Sidebar({ userName, userRole, properties, activePropertyId }: Si
       <div className="border-b border-slate-800">
         <div className="flex items-center justify-between h-16 px-5">
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-white font-bold text-sm">
-              H
-            </div>
+            <HotelOSLogo className="h-8 w-8" />
             <span className="text-lg font-bold text-white">HotelOS</span>
           </div>
           {/* Close button (mobile only) */}
@@ -286,9 +285,7 @@ export function Sidebar({ userName, userRole, properties, activePropertyId }: Si
           <span className="material-icons">menu</span>
         </button>
         <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-white font-bold text-xs">
-            H
-          </div>
+          <HotelOSLogo className="h-7 w-7" />
           <span className="text-sm font-bold text-white truncate max-w-[200px]">
             {activeProperty?.name ?? 'HotelOS'}
           </span>
@@ -325,10 +322,10 @@ export function Sidebar({ userName, userRole, properties, activePropertyId }: Si
             <div className="flex items-center justify-center h-16 border-b border-slate-800">
               <button
                 onClick={toggleCollapsed}
-                className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary/90 transition-colors"
+                className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-slate-800 transition-colors"
                 title="Expand sidebar"
               >
-                H
+                <HotelOSLogo className="h-8 w-8" />
               </button>
             </div>
 
@@ -392,9 +389,7 @@ export function Sidebar({ userName, userRole, properties, activePropertyId }: Si
             <div className="border-b border-slate-800">
               <div className="flex items-center justify-between h-16 px-5">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-white font-bold text-sm">
-                    H
-                  </div>
+                  <HotelOSLogo className="h-8 w-8" />
                   <span className="text-lg font-bold text-white">HotelOS</span>
                 </div>
                 <button

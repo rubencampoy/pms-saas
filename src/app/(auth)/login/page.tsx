@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { LoginForm } from '@/components/auth/login-form';
+import { HotelOSLogo } from '@/components/shared/hotel-os-logo';
 
 export const metadata: Metadata = {
   title: 'Iniciar sesión — HotelOS',
@@ -11,9 +12,7 @@ export default function LoginPage() {
       {/* Left panel — branding */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-[#0a1118] to-[#1a2632] flex-col justify-between p-12">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-white font-bold text-xl">
-            H
-          </div>
+          <HotelOSLogo className="h-10 w-10" />
           <span className="text-xl font-bold text-white">HotelOS</span>
         </div>
 
@@ -55,9 +54,7 @@ export default function LoginPage() {
         <div className="w-full max-w-md space-y-8">
           {/* Mobile logo */}
           <div className="flex items-center gap-3 lg:hidden">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-white font-bold text-xl">
-              H
-            </div>
+            <HotelOSLogo className="h-10 w-10" />
             <span className="text-xl font-bold text-slate-900 dark:text-white">HotelOS</span>
           </div>
 
