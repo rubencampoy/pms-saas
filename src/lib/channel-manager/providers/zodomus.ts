@@ -1410,11 +1410,14 @@ export async function airbnbPushCalendar(
 ): Promise<SyncResult> {
   const startMs = Date.now();
   try {
+    console.log(`[Airbnb] airbnbPushCalendar: sending ${operations.length} operations for listing ${listingId}...`);
+    const postStart = Date.now();
     await airbnbPost(config, 'airbnb-calendar', {
       channelId: AIRBNB_CHANNEL_ID,
       propertyId: listingId,
       operations,
     });
+    console.log(`[Airbnb] airbnbPushCalendar: SUCCESS in ${Date.now() - postStart}ms for listing ${listingId}`);
 
     const result: SyncResult = {
       status: SyncStatus.SUCCESS,
@@ -1434,6 +1437,7 @@ export async function airbnbPushCalendar(
     return result;
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+    console.error(`[Airbnb] airbnbPushCalendar: FAILED for listing ${listingId}: ${errorMessage}`);
     if (log) {
       await log({
         direction: SyncDirection.OUTBOUND,
