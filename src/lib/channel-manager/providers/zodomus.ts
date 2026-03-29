@@ -1,5 +1,5 @@
 import { format, addDays } from 'date-fns';
-import { SyncDirection, SyncAction, SyncStatus, RETRY_ATTEMPTS, RETRY_BASE_DELAY_MS } from '@/lib/constants/channel-manager';
+import { SyncDirection, SyncAction, SyncStatus, RETRY_ATTEMPTS, RETRY_BASE_DELAY_MS, AIRBNB_CHANNEL_ID, AIRBNB_PRICE_MODEL_ID } from '@/lib/constants/channel-manager';
 import type {
   ChannelManagerProvider,
   CMConfig,
@@ -490,8 +490,11 @@ export const zodomusProvider: ChannelManagerProvider = {
     const start = Date.now();
 
     try {
-      const channels = await fetchChannels(config);
-      console.log(`[Zodomus] pushAvailability: ${channels.length} channels found: ${channels.map(c => `${c.channel}(${c.id})`).join(', ')}`);
+      const allChannels = await fetchChannels(config);
+      // Airbnb uses a dedicated sync path (airbnb-calendar) with listing-specific propertyId,
+      // so we exclude it from the generic availability push which uses config.hotelId.
+      const channels = allChannels.filter(c => c.id !== AIRBNB_CHANNEL_ID);
+      console.log(`[Zodomus] pushAvailability: ${allChannels.length} channels found (${channels.length} after excluding Airbnb): ${channels.map(c => `${c.channel}(${c.id})`).join(', ')}`);
 
       if (channels.length === 0) {
         console.log(`[Zodomus] pushAvailability: no channels → skipping`);
@@ -683,8 +686,11 @@ export const zodomusProvider: ChannelManagerProvider = {
     const start = Date.now();
 
     try {
-      const channels = await fetchChannels(config);
-      console.log(`[Zodomus] pushRates: ${channels.length} channels found`);
+      const allChannels = await fetchChannels(config);
+      // Airbnb uses a dedicated sync path (airbnb-calendar) with listing-specific propertyId,
+      // so we exclude it from the generic rates push which uses config.hotelId.
+      const channels = allChannels.filter(c => c.id !== AIRBNB_CHANNEL_ID);
+      console.log(`[Zodomus] pushRates: ${allChannels.length} channels found (${channels.length} after excluding Airbnb)`);
 
       if (channels.length === 0) {
         return { status: SyncStatus.SUCCESS, updatesProcessed: 0 };
@@ -833,7 +839,8 @@ export const zodomusProvider: ChannelManagerProvider = {
     const start = Date.now();
 
     try {
-      const channels = await fetchChannels(config);
+      // Exclude Airbnb — it uses a dedicated sync path with listing-specific propertyId
+      const channels = (await fetchChannels(config)).filter(c => c.id !== AIRBNB_CHANNEL_ID);
       if (channels.length === 0) {
         return { status: SyncStatus.SUCCESS, updatesProcessed: 0 };
       }
@@ -960,7 +967,8 @@ export const zodomusProvider: ChannelManagerProvider = {
    * Deduplicates rooms by ID across channels.
    */
   async fetchExternalRoomTypes(config: CMConfig): Promise<ExternalRoomType[]> {
-    const channels = await fetchChannels(config);
+    // Exclude Airbnb — it uses listing-specific propertyId, not config.hotelId
+    const channels = (await fetchChannels(config)).filter(c => c.id !== AIRBNB_CHANNEL_ID);
 
     if (channels.length === 0) {
       return [];
@@ -995,7 +1003,8 @@ export const zodomusProvider: ChannelManagerProvider = {
    * Deduplicates by room+rate combination across channels.
    */
   async fetchExternalRatePlans(config: CMConfig): Promise<ExternalRatePlan[]> {
-    const channels = await fetchChannels(config);
+    // Exclude Airbnb — it uses listing-specific propertyId, not config.hotelId
+    const channels = (await fetchChannels(config)).filter(c => c.id !== AIRBNB_CHANNEL_ID);
 
     if (channels.length === 0) {
       return [];
@@ -1264,7 +1273,6 @@ export const zodomusProvider: ChannelManagerProvider = {
 // the Airbnb channel (channelId=3) and operate through Zodomus as intermediary.
 
 import { airbnbRateLimiter } from '@/lib/channel-manager/rate-limiter';
-import { AIRBNB_CHANNEL_ID, AIRBNB_PRICE_MODEL_ID } from '@/lib/constants/channel-manager';
 import type {
   AirbnbHostActivationResult,
   AirbnbHostStatusResult,

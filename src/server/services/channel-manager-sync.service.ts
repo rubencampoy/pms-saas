@@ -296,8 +296,21 @@ export const channelManagerSyncService = {
         rateStatus = SyncStatus.ERROR;
       }
 
-      // Use worst status between availability and rates
-      const finalStatus = (availStatus === SyncStatus.ERROR || rateStatus === SyncStatus.ERROR)
+      // ── Airbnb dedicated sync ──
+      // Airbnb uses its own calendar endpoint with listing-specific propertyIds,
+      // so we sync it separately after the generic channel push.
+      let airbnbStatus = SyncStatus.SUCCESS;
+      try {
+        console.log(`[ChannelManager] fullSync: starting Airbnb calendar sync...`);
+        await this.syncAirbnbCalendar(organizationId, propertyId, integration.id);
+        console.log(`[ChannelManager] fullSync: Airbnb calendar sync completed`);
+      } catch (airbnbErr) {
+        console.error(`[ChannelManager] fullSync: Airbnb sync error:`, airbnbErr instanceof Error ? airbnbErr.message : airbnbErr);
+        airbnbStatus = SyncStatus.ERROR;
+      }
+
+      // Use worst status between availability, rates, and Airbnb
+      const finalStatus = (availStatus === SyncStatus.ERROR || rateStatus === SyncStatus.ERROR || airbnbStatus === SyncStatus.ERROR)
         ? SyncStatus.ERROR
         : SyncStatus.SUCCESS;
       console.log(`[ChannelManager] fullSync: final status: ${finalStatus}`);
