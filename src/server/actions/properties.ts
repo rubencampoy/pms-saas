@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/lib/auth';
 import { requireRole } from '@/lib/auth/rbac';
+import { assertCapacity } from '@/lib/auth/limits';
 import { createPropertySchema, updatePropertySchema } from '@/lib/validators/property';
 import { propertyRepo } from '@/server/repositories/property.repo';
 import type { ActionResult } from '@/types/actions';
@@ -34,6 +35,9 @@ export async function createProperty(
         fieldErrors: validated.error.flatten().fieldErrors as Record<string, string[]>,
       };
     }
+
+    const capacity = await assertCapacity(session.user.organizationId, 'property');
+    if (!capacity.ok) return { success: false, error: capacity.message };
 
     const property = await propertyRepo.create(
       session.user.organizationId,

@@ -18,6 +18,7 @@ import {
 import { issuePendingToken } from '@/lib/auth/pending-token';
 import { generateTotpSecret } from '@/lib/auth/totp';
 import { getAppBaseUrl } from '@/lib/utils/app-url';
+import { assertCapacity } from '@/lib/auth/limits';
 import type { ActionResult } from '@/types/actions';
 
 const INVITE_EXPIRY_DAYS = 7;
@@ -53,6 +54,9 @@ export async function createInvitationAction(
 
     const email = validated.data.email.toLowerCase().trim();
     const orgId = session.user.organizationId;
+
+    const capacity = await assertCapacity(orgId, 'user');
+    if (!capacity.ok) return { success: false, error: capacity.message };
 
     const existingUser = await db.query.users.findFirst({
       where: eq(users.email, email),

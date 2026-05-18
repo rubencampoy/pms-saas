@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, jsonb, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, jsonb, timestamp, integer, text } from 'drizzle-orm/pg-core';
 
 export const organizations = pgTable('organizations', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -9,6 +9,12 @@ export const organizations = pgTable('organizations', {
   locale: varchar('locale', { length: 10 }).notNull().default('es-ES'),
   settings: jsonb('settings').default({}),
   plan: varchar('plan', { length: 20 }).notNull().default('free'),
+  status: varchar('status', { length: 20 }).notNull().default('active'),
+  maxProperties: integer('max_properties').notNull().default(1),
+  maxUnits: integer('max_units').notNull().default(10),
+  maxUsers: integer('max_users').notNull().default(3),
+  suspendedAt: timestamp('suspended_at', { withTimezone: true }),
+  suspendedReason: text('suspended_reason'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

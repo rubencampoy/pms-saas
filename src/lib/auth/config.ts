@@ -39,6 +39,7 @@ async function loadMemberships(userId: string): Promise<MembershipSummary[]> {
         eq(memberships.userId, userId),
         eq(memberships.isActive, true),
         isNotNull(memberships.acceptedAt),
+        eq(organizations.status, 'active'),
       ),
     )
     .orderBy(desc(memberships.createdAt));

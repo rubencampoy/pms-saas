@@ -113,7 +113,8 @@
     "rates": "Tarifas",
     "bookingEngine": "Motor de Reservas",
     "channels": "Canales",
-    "team": "Equipo"
+    "team": "Equipo",
+    "plan": "Plan"
   },
   "bookingEngine": {
     "title": "Motor de Reservas",

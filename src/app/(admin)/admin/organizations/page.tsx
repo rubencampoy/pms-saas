@@ -30,7 +30,13 @@ export default async function AdminOrganizationsPage() {
                 Organización
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                Estado
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                 Plan
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                Límites
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                 Miembros
@@ -46,7 +52,7 @@ export default async function AdminOrganizationsPage() {
           <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
             {orgs.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-6 py-12 text-center text-sm text-slate-500">
+                <td colSpan={7} className="px-6 py-12 text-center text-sm text-slate-500">
                   Aún no hay organizaciones. Crea la primera.
                 </td>
               </tr>
@@ -54,15 +60,23 @@ export default async function AdminOrganizationsPage() {
             {orgs.map((org) => (
               <tr key={org.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
                 <td className="px-6 py-3">
-                  <div>
-                    <p className="text-sm font-medium text-slate-900 dark:text-white">{org.name}</p>
+                  <Link href={`/admin/organizations/${org.id}`} className="block group">
+                    <p className="text-sm font-medium text-slate-900 dark:text-white group-hover:text-primary">
+                      {org.name}
+                    </p>
                     <p className="text-xs text-slate-500">{org.slug}</p>
-                  </div>
+                  </Link>
+                </td>
+                <td className="px-6 py-3 text-sm">
+                  <StatusBadge status={org.status} />
                 </td>
                 <td className="px-6 py-3 text-sm">
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 capitalize">
                     {org.plan}
                   </span>
+                </td>
+                <td className="px-6 py-3 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                  {org.maxProperties}p · {org.maxUnits}h · {org.maxUsers}u
                 </td>
                 <td className="px-6 py-3 text-sm text-slate-700 dark:text-slate-300">
                   {org.memberCount}
@@ -85,5 +99,22 @@ export default async function AdminOrganizationsPage() {
         </table>
       </section>
     </div>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  if (status === 'suspended') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300">
+        <span className="w-1.5 h-1.5 rounded-full bg-red-600 dark:bg-red-400" />
+        Suspendida
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
+      <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 dark:bg-emerald-400" />
+      Activa
+    </span>
   );
 }

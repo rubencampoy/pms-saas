@@ -11,6 +11,14 @@ const PLANS = [
   { value: 'enterprise', label: 'Enterprise' },
 ] as const;
 
+// Sensible defaults per plan — admin can override per-org afterwards.
+const PLAN_DEFAULTS: Record<string, { maxProperties: number; maxUnits: number; maxUsers: number }> = {
+  free: { maxProperties: 1, maxUnits: 10, maxUsers: 3 },
+  starter: { maxProperties: 1, maxUnits: 25, maxUsers: 5 },
+  professional: { maxProperties: 3, maxUnits: 75, maxUsers: 15 },
+  enterprise: { maxProperties: 50, maxUnits: 1000, maxUsers: 100 },
+};
+
 export function CreateOrganizationForm() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -18,6 +26,18 @@ export function CreateOrganizationForm() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [success, setSuccess] = useState<{ acceptUrl: string } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [plan, setPlan] = useState<'free' | 'starter' | 'professional' | 'enterprise'>('free');
+  const [maxProperties, setMaxProperties] = useState(PLAN_DEFAULTS.free!.maxProperties);
+  const [maxUnits, setMaxUnits] = useState(PLAN_DEFAULTS.free!.maxUnits);
+  const [maxUsers, setMaxUsers] = useState(PLAN_DEFAULTS.free!.maxUsers);
+
+  function handlePlanChange(next: 'free' | 'starter' | 'professional' | 'enterprise') {
+    setPlan(next);
+    const defaults = PLAN_DEFAULTS[next]!;
+    setMaxProperties(defaults.maxProperties);
+    setMaxUnits(defaults.maxUnits);
+    setMaxUsers(defaults.maxUsers);
+  }
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -30,7 +50,10 @@ export function CreateOrganizationForm() {
       organizationName: String(fd.get('organizationName') ?? '').trim(),
       ownerName: String(fd.get('ownerName') ?? '').trim(),
       ownerEmail: String(fd.get('ownerEmail') ?? '').trim(),
-      plan: String(fd.get('plan') ?? 'free') as 'free' | 'starter' | 'professional' | 'enterprise',
+      plan,
+      maxProperties,
+      maxUnits,
+      maxUsers,
     };
 
     startTransition(async () => {
@@ -146,8 +169,8 @@ export function CreateOrganizationForm() {
         </label>
         <select
           id="plan"
-          name="plan"
-          defaultValue="free"
+          value={plan}
+          onChange={(e) => handlePlanChange(e.target.value as typeof plan)}
           className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
         >
           {PLANS.map((p) => (
@@ -156,6 +179,15 @@ export function CreateOrganizationForm() {
             </option>
           ))}
         </select>
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          Los límites se ajustan al plan elegido. Puedes afinarlos abajo.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-slate-200 dark:border-slate-700">
+        <LimitField id="maxProperties" label="Máx. propiedades" value={maxProperties} onChange={setMaxProperties} />
+        <LimitField id="maxUnits" label="Máx. habitaciones" value={maxUnits} onChange={setMaxUnits} />
+        <LimitField id="maxUsers" label="Máx. usuarios" value={maxUsers} onChange={setMaxUsers} />
       </div>
 
       <div className="pt-2 flex justify-end gap-3">
@@ -178,6 +210,34 @@ export function CreateOrganizationForm() {
         </button>
       </div>
     </form>
+  );
+}
+
+function LimitField({
+  id,
+  label,
+  value,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <div>
+      <label htmlFor={id} className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+        {label}
+      </label>
+      <input
+        id={id}
+        type="number"
+        min={1}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+      />
+    </div>
   );
 }
 

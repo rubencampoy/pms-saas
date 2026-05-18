@@ -1,0 +1,81 @@
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { organizationRepo } from '@/server/repositories/organization.repo';
+import { invitationRepo } from '@/server/repositories/invitation.repo';
+import { OrganizationDetailClient } from '@/components/admin/organization-detail-client';
+
+interface Props {
+  params: Promise<{ id: string }>;
+}
+
+export default async function AdminOrganizationDetailPage({ params }: Props) {
+  const { id } = await params;
+
+  const org = await organizationRepo.findById(id);
+  if (!org) notFound();
+
+  const [usage, pendingInvitations] = await Promise.all([
+    organizationRepo.getUsage(id),
+    invitationRepo.findPendingByOrg(id),
+  ]);
+
+  return (
+    <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
+      <div>
+        <Link
+          href="/admin/organizations"
+          className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 flex items-center gap-1 mb-2"
+        >
+          <span className="material-icons text-[16px]">arrow_back</span>
+          Volver
+        </Link>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{org.name}</h1>
+          <StatusBadge status={org.status} />
+        </div>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          {org.slug} · Creada {new Date(org.createdAt).toLocaleDateString()}
+        </p>
+      </div>
+
+      <OrganizationDetailClient
+        organization={{
+          id: org.id,
+          name: org.name,
+          plan: org.plan,
+          status: org.status,
+          maxProperties: org.maxProperties,
+          maxUnits: org.maxUnits,
+          maxUsers: org.maxUsers,
+          suspendedAt: org.suspendedAt?.toISOString() ?? null,
+          suspendedReason: org.suspendedReason ?? null,
+        }}
+        usage={usage}
+        pendingInvitations={pendingInvitations.map((inv) => ({
+          id: inv.id,
+          email: inv.email,
+          role: inv.role,
+          token: inv.token,
+          expiresAt: inv.expiresAt.toISOString(),
+        }))}
+      />
+    </div>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  if (status === 'suspended') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300">
+        <span className="w-1.5 h-1.5 rounded-full bg-red-600 dark:bg-red-400" />
+        Suspendida
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
+      <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 dark:bg-emerald-400" />
+      Activa
+    </span>
+  );
+}

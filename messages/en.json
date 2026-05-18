@@ -113,7 +113,8 @@
     "rates": "Rates",
     "bookingEngine": "Booking Engine",
     "channels": "Channels",
-    "team": "Team"
+    "team": "Team",
+    "plan": "Plan"
   },
   "bookingEngine": {
     "title": "Booking Engine",
