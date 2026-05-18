@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/lib/auth';
 import { requireRole } from '@/lib/auth/rbac';
-import { assertCapacity } from '@/lib/auth/limits';
+import { assertPropertyUnitCapacity } from '@/lib/auth/limits';
 import { createUnitSchema, updateUnitSchema } from '@/lib/validators/unit';
 import { unitRepo } from '@/server/repositories/unit.repo';
 import type { ActionResult } from '@/types/actions';
@@ -36,7 +36,10 @@ export async function createUnit(
       };
     }
 
-    const capacity = await assertCapacity(session.user.organizationId, 'unit');
+    const capacity = await assertPropertyUnitCapacity(
+      session.user.organizationId,
+      validated.data.propertyId,
+    );
     if (!capacity.ok) return { success: false, error: capacity.message };
 
     const unit = await unitRepo.create(

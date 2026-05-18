@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { organizationRepo } from '@/server/repositories/organization.repo';
+import { propertyRepo } from '@/server/repositories/property.repo';
 import { invitationRepo } from '@/server/repositories/invitation.repo';
 import { OrganizationDetailClient } from '@/components/admin/organization-detail-client';
 
@@ -14,13 +15,14 @@ export default async function AdminOrganizationDetailPage({ params }: Props) {
   const org = await organizationRepo.findById(id);
   if (!org) notFound();
 
-  const [usage, pendingInvitations] = await Promise.all([
+  const [usage, propertiesList, pendingInvitations] = await Promise.all([
     organizationRepo.getUsage(id),
+    propertyRepo.findWithStatsByOrg(id),
     invitationRepo.findPendingByOrg(id),
   ]);
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
+    <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
       <div>
         <Link
           href="/admin/organizations"
@@ -42,15 +44,21 @@ export default async function AdminOrganizationDetailPage({ params }: Props) {
         organization={{
           id: org.id,
           name: org.name,
-          plan: org.plan,
           status: org.status,
           maxProperties: org.maxProperties,
-          maxUnits: org.maxUnits,
           maxUsers: org.maxUsers,
           suspendedAt: org.suspendedAt?.toISOString() ?? null,
           suspendedReason: org.suspendedReason ?? null,
         }}
         usage={usage}
+        properties={propertiesList.map((p) => ({
+          id: p.id,
+          name: p.name,
+          code: p.code,
+          plan: p.plan,
+          maxUnits: p.maxUnits,
+          unitCount: p.unitCount,
+        }))}
         pendingInvitations={pendingInvitations.map((inv) => ({
           id: inv.id,
           email: inv.email,

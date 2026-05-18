@@ -33,10 +33,7 @@ export default async function AdminOrganizationsPage() {
                 Estado
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                Plan
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                Límites
+                Propiedades
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                 Miembros
@@ -52,7 +49,7 @@ export default async function AdminOrganizationsPage() {
           <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
             {orgs.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-6 py-12 text-center text-sm text-slate-500">
+                <td colSpan={6} className="px-6 py-12 text-center text-sm text-slate-500">
                   Aún no hay organizaciones. Crea la primera.
                 </td>
               </tr>
@@ -70,16 +67,11 @@ export default async function AdminOrganizationsPage() {
                 <td className="px-6 py-3 text-sm">
                   <StatusBadge status={org.status} />
                 </td>
-                <td className="px-6 py-3 text-sm">
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 capitalize">
-                    {org.plan}
-                  </span>
-                </td>
-                <td className="px-6 py-3 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                  {org.maxProperties}p · {org.maxUnits}h · {org.maxUsers}u
+                <td className="px-6 py-3 text-sm text-slate-700 dark:text-slate-300">
+                  {org.propertyCount} <span className="text-slate-400 text-xs">de {org.maxProperties}</span>
                 </td>
                 <td className="px-6 py-3 text-sm text-slate-700 dark:text-slate-300">
-                  {org.memberCount}
+                  {org.memberCount} <span className="text-slate-400 text-xs">de {org.maxUsers}</span>
                 </td>
                 <td className="px-6 py-3 text-sm text-slate-700 dark:text-slate-300">
                   {org.pendingInviteCount > 0 ? (

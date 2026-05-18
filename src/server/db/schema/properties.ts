@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, time, jsonb, timestamp, boolean } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, time, jsonb, timestamp, boolean, integer } from 'drizzle-orm/pg-core';
 import { organizations } from './organizations';
 
 export const properties = pgTable('properties', {
@@ -13,6 +13,8 @@ export const properties = pgTable('properties', {
   checkOutTime: time('check_out_time').notNull().default('11:00'),
   timezone: varchar('timezone', { length: 50 }).notNull().default('Europe/Madrid'),
   isActive: boolean('is_active').notNull().default(true),
+  plan: varchar('plan', { length: 20 }).notNull().default('free'),
+  maxUnits: integer('max_units').notNull().default(10),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

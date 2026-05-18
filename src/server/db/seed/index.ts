@@ -65,7 +65,8 @@ async function seed() {
       timezone: 'Europe/Madrid',
       defaultCurrency: 'EUR',
       locale: 'es-ES',
-      plan: 'professional',
+      maxProperties: 5,
+      maxUsers: 10,
       settings: {
         brandName: 'Koala Hostel',
         invoicePrefix: 'F',
@@ -143,6 +144,8 @@ async function seed() {
         checkInTime: '14:00',
         checkOutTime: '11:00',
         timezone: 'Europe/Madrid',
+        plan: 'professional',
+        maxUnits: 50,
       },
       {
         organizationId: orgId,
@@ -160,6 +163,8 @@ async function seed() {
         checkInTime: '14:00',
         checkOutTime: '11:00',
         timezone: 'Europe/Madrid',
+        plan: 'starter',
+        maxUnits: 25,
       },
     ])
     .returning();

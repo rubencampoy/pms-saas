@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { createProperty, updateProperty, deleteProperty } from '@/server/actions/properties';
+import { updateProperty, deleteProperty } from '@/server/actions/properties';
 
 interface Property {
   id: string;
@@ -66,13 +66,14 @@ export function PropertiesClient({ properties, roomTypes, units }: PropertiesCli
             Manage your properties, addresses, and check-in/check-out times.
           </p>
         </div>
-        <button
-          onClick={() => setFormDialog({ open: true })}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors shadow-sm shadow-primary/30"
-        >
-          <span className="material-icons text-lg">add</span>
-          New Property
-        </button>
+        <div className="text-right">
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            ¿Necesitas añadir otra propiedad?
+          </p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Contacta con HotelOS.
+          </p>
+        </div>
       </div>
 
       {/* Properties grid */}
@@ -82,7 +83,7 @@ export function PropertiesClient({ properties, roomTypes, units }: PropertiesCli
             apartment
           </span>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            No properties yet. Create one to get started.
+            Aún no tienes propiedades. Contacta con HotelOS para añadir la primera.
           </p>
         </div>
       ) : (
@@ -268,9 +269,11 @@ function PropertyFormDialog({ editData, onClose }: PropertyFormDialogProps) {
         timezone,
       };
 
-      const result = isEdit
-        ? await updateProperty({ id: editData.id, ...input })
-        : await createProperty(input);
+      if (!isEdit) {
+        setError('La creación de propiedades está gestionada por HotelOS. Contacta para añadir una.');
+        return;
+      }
+      const result = await updateProperty({ id: editData!.id, ...input });
 
       if (!result.success) {
         setError(result.error);

@@ -4,7 +4,6 @@ import {
   memberships,
   invitations,
   properties,
-  units,
 } from '@/server/db/schema';
 import { eq, desc, sql, and, isNull, gt } from 'drizzle-orm';
 
@@ -34,10 +33,8 @@ export const organizationRepo = {
         id: organizations.id,
         name: organizations.name,
         slug: organizations.slug,
-        plan: organizations.plan,
         status: organizations.status,
         maxProperties: organizations.maxProperties,
-        maxUnits: organizations.maxUnits,
         maxUsers: organizations.maxUsers,
         createdAt: organizations.createdAt,
         memberCount: sql<number>`(
@@ -45,6 +42,10 @@ export const organizationRepo = {
           WHERE ${memberships.organizationId} = ${organizations.id}
             AND ${memberships.isActive} = true
             AND ${memberships.acceptedAt} IS NOT NULL
+        )`,
+        propertyCount: sql<number>`(
+          SELECT COUNT(*)::int FROM ${properties}
+          WHERE ${properties.organizationId} = ${organizations.id}
         )`,
         pendingInviteCount: sql<number>`(
           SELECT COUNT(*)::int FROM ${invitations}
@@ -59,19 +60,14 @@ export const organizationRepo = {
   },
 
   /**
-   * Returns current usage counts for an org. Used both for admin overview
-   * and customer-facing usage banner.
+   * Returns org-level usage counts (properties + users). Per-property unit
+   * usage is handled by propertyRepo.findWithStatsByOrg.
    */
   async getUsage(organizationId: string) {
     const [propertyCount] = await db
       .select({ n: sql<number>`COUNT(*)::int` })
       .from(properties)
       .where(eq(properties.organizationId, organizationId));
-
-    const [unitCount] = await db
-      .select({ n: sql<number>`COUNT(*)::int` })
-      .from(units)
-      .where(eq(units.organizationId, organizationId));
 
     const [activeMemberCount] = await db
       .select({ n: sql<number>`COUNT(*)::int` })
@@ -97,8 +93,6 @@ export const organizationRepo = {
 
     return {
       properties: propertyCount?.n ?? 0,
-      units: unitCount?.n ?? 0,
-      // count pending invites as users-in-flight to avoid bypassing limits
       users: (activeMemberCount?.n ?? 0) + (pendingInviteCount?.n ?? 0),
     };
   },

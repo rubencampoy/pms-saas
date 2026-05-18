@@ -1,6 +1,6 @@
 import { db } from '@/server/db';
-import { properties } from '@/server/db/schema';
-import { and, eq } from 'drizzle-orm';
+import { properties, units } from '@/server/db/schema';
+import { and, eq, sql } from 'drizzle-orm';
 
 export const propertyRepo = {
   async findAll(organizationId: string) {
@@ -8,6 +8,30 @@ export const propertyRepo = {
       where: eq(properties.organizationId, organizationId),
       orderBy: properties.name,
     });
+  },
+
+  /**
+   * List properties of an org with plan + max_units + current unit count.
+   * Used by both admin (to manage limits) and customer (to see per-property usage).
+   */
+  async findWithStatsByOrg(organizationId: string) {
+    return db
+      .select({
+        id: properties.id,
+        name: properties.name,
+        code: properties.code,
+        plan: properties.plan,
+        maxUnits: properties.maxUnits,
+        isActive: properties.isActive,
+        createdAt: properties.createdAt,
+        unitCount: sql<number>`(
+          SELECT COUNT(*)::int FROM ${units}
+          WHERE ${units.propertyId} = ${properties.id}
+        )`,
+      })
+      .from(properties)
+      .where(eq(properties.organizationId, organizationId))
+      .orderBy(properties.name);
   },
 
   async findById(organizationId: string, id: string) {
@@ -30,6 +54,8 @@ export const propertyRepo = {
       checkInTime?: string;
       checkOutTime?: string;
       timezone?: string;
+      plan?: string;
+      maxUnits?: number;
     },
   ) {
     const [property] = await db
@@ -40,6 +66,18 @@ export const propertyRepo = {
       })
       .returning();
     return property!;
+  },
+
+  async updateLimits(
+    propertyId: string,
+    data: { plan: string; maxUnits: number },
+  ) {
+    const [property] = await db
+      .update(properties)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(properties.id, propertyId))
+      .returning();
+    return property;
   },
 
   async update(

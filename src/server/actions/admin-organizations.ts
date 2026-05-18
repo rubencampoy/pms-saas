@@ -1,7 +1,7 @@
 'use server';
 
 import { randomBytes } from 'crypto';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/lib/auth';
 import { getAppBaseUrl } from '@/lib/utils/app-url';
@@ -10,6 +10,7 @@ import {
   organizations,
   invitations,
   users,
+  properties,
   superAdminAccessLog,
 } from '@/server/db/schema';
 import { slugify } from '@/lib/utils/slug';
@@ -18,22 +19,18 @@ import {
   createOrganizationAsAdminSchema,
   updateOrganizationLimitsSchema,
   suspendOrganizationSchema,
+  createPropertyAsAdminSchema,
+  updatePropertyLimitsSchema,
   type CreateOrganizationAsAdminInput,
   type UpdateOrganizationLimitsInput,
   type SuspendOrganizationInput,
+  type CreatePropertyAsAdminInput,
+  type UpdatePropertyLimitsInput,
 } from '@/lib/validators/admin';
+import { assertOrgCapacity } from '@/lib/auth/limits';
 import type { ActionResult } from '@/types/actions';
 
-const INVITE_EXPIRY_DAYS = 14; // a bit longer for sales-led onboarding
-
-async function requireSuperAdmin() {
-  const session = await auth();
-  if (!session?.user) return { ok: false as const, error: 'No autenticado' };
-  if (!session.user.isSuperAdmin) {
-    return { ok: false as const, error: 'Solo super admins' };
-  }
-  return { ok: true as const, session };
-}
+const INVITE_EXPIRY_DAYS = 14;
 
 function newToken(): string {
   return randomBytes(32).toString('hex');
@@ -52,14 +49,17 @@ async function findFreeSlug(base: string): Promise<string> {
   return `${root}-${Date.now()}`;
 }
 
-/**
- * Platform super-admin operation: provision a new organization and create
- * an owner-role invitation. The customer receives the accept-invite link
- * (we return it; sending email is a future task).
- *
- * The org is created without any active user — the first owner activates it
- * by accepting the invitation.
- */
+async function requireSuperAdmin() {
+  const session = await auth();
+  if (!session?.user) return { ok: false as const, error: 'No autenticado' };
+  if (!session.user.isSuperAdmin) {
+    return { ok: false as const, error: 'Solo super admins' };
+  }
+  return { ok: true as const, session };
+}
+
+// ─── Organization actions ────────────────────────────────────────────────
+
 export async function createOrganizationAsAdminAction(
   input: CreateOrganizationAsAdminInput,
 ): Promise<ActionResult<{ organizationId: string; acceptUrl: string; token: string }>> {
@@ -76,15 +76,7 @@ export async function createOrganizationAsAdminAction(
     };
   }
 
-  const {
-    organizationName,
-    ownerName: _ownerName,
-    ownerEmail,
-    plan,
-    maxProperties,
-    maxUnits,
-    maxUsers,
-  } = validated.data;
+  const { organizationName, ownerName: _ownerName, ownerEmail, maxProperties, maxUsers } = validated.data;
   const normalizedEmail = ownerEmail.toLowerCase().trim();
 
   const existingUser = await db.query.users.findFirst({
@@ -101,14 +93,7 @@ export async function createOrganizationAsAdminAction(
     organizationId = await db.transaction(async (tx) => {
       const [org] = await tx
         .insert(organizations)
-        .values({
-          name: organizationName,
-          slug,
-          plan,
-          maxProperties,
-          maxUnits,
-          maxUsers,
-        })
+        .values({ name: organizationName, slug, maxProperties, maxUsers })
         .returning({ id: organizations.id });
 
       await tx.insert(invitations).values({
@@ -139,7 +124,6 @@ export async function createOrganizationAsAdminAction(
   revalidatePath('/admin/organizations');
 
   const acceptUrl = `${await getAppBaseUrl()}/accept-invite?token=${token}`;
-
   return { success: true, data: { organizationId, acceptUrl, token } };
 }
 
@@ -159,20 +143,20 @@ export async function updateOrganizationLimitsAction(
     };
   }
 
-  const { organizationId, plan, maxProperties, maxUnits, maxUsers } = validated.data;
+  const { organizationId, maxProperties, maxUsers } = validated.data;
 
   try {
     await db.transaction(async (tx) => {
       await tx
         .update(organizations)
-        .set({ plan, maxProperties, maxUnits, maxUsers, updatedAt: new Date() })
+        .set({ maxProperties, maxUsers, updatedAt: new Date() })
         .where(eq(organizations.id, organizationId));
 
       await tx.insert(superAdminAccessLog).values({
         superAdminUserId: session.user.id,
         organizationId,
-        action: 'update_limits',
-        reason: `plan=${plan} maxProperties=${maxProperties} maxUnits=${maxUnits} maxUsers=${maxUsers}`,
+        action: 'update_org_limits',
+        reason: `maxProperties=${maxProperties} maxUsers=${maxUsers}`,
       });
     });
   } catch (error) {
@@ -182,7 +166,6 @@ export async function updateOrganizationLimitsAction(
 
   revalidatePath('/admin/organizations');
   revalidatePath(`/admin/organizations/${organizationId}`);
-
   return { success: true, data: undefined };
 }
 
@@ -230,7 +213,6 @@ export async function suspendOrganizationAction(
 
   revalidatePath('/admin/organizations');
   revalidatePath(`/admin/organizations/${organizationId}`);
-
   return { success: true, data: undefined };
 }
 
@@ -266,6 +248,116 @@ export async function reactivateOrganizationAction(
 
   revalidatePath('/admin/organizations');
   revalidatePath(`/admin/organizations/${organizationId}`);
+  return { success: true, data: undefined };
+}
 
+// ─── Property actions (super admin manages plan + limits) ────────────────
+
+export async function createPropertyAsAdminAction(
+  input: CreatePropertyAsAdminInput,
+): Promise<ActionResult<{ propertyId: string }>> {
+  const guard = await requireSuperAdmin();
+  if (!guard.ok) return { success: false, error: guard.error };
+  const { session } = guard;
+
+  const validated = createPropertyAsAdminSchema.safeParse(input);
+  if (!validated.success) {
+    return {
+      success: false,
+      error: 'Revisa los campos',
+      fieldErrors: validated.error.flatten().fieldErrors as Record<string, string[]>,
+    };
+  }
+
+  const { organizationId, name, code, plan, maxUnits } = validated.data;
+  const upperCode = code.toUpperCase();
+
+  // Check uniqueness of code within the org
+  const dup = await db.query.properties.findFirst({
+    where: and(eq(properties.organizationId, organizationId), eq(properties.code, upperCode)),
+    columns: { id: true },
+  });
+  if (dup) {
+    return {
+      success: false,
+      error: `Ya existe una propiedad con código ${upperCode} en esta organización`,
+      fieldErrors: { code: ['Código duplicado'] },
+    };
+  }
+
+  // Enforce max_properties at the org level
+  const capacity = await assertOrgCapacity(organizationId, 'property');
+  if (!capacity.ok) return { success: false, error: capacity.message };
+
+  let propertyId: string;
+  try {
+    propertyId = await db.transaction(async (tx) => {
+      const [p] = await tx
+        .insert(properties)
+        .values({ organizationId, name, code: upperCode, plan, maxUnits })
+        .returning({ id: properties.id });
+
+      await tx.insert(superAdminAccessLog).values({
+        superAdminUserId: session.user.id,
+        organizationId,
+        action: 'create_property',
+        reason: `name=${name} code=${upperCode} plan=${plan} maxUnits=${maxUnits}`,
+      });
+
+      return p!.id;
+    });
+  } catch (error) {
+    console.error('createPropertyAsAdminAction failed:', error);
+    return { success: false, error: 'No se pudo crear la propiedad' };
+  }
+
+  revalidatePath(`/admin/organizations/${organizationId}`);
+  return { success: true, data: { propertyId } };
+}
+
+export async function updatePropertyLimitsAction(
+  input: UpdatePropertyLimitsInput,
+): Promise<ActionResult> {
+  const guard = await requireSuperAdmin();
+  if (!guard.ok) return { success: false, error: guard.error };
+  const { session } = guard;
+
+  const validated = updatePropertyLimitsSchema.safeParse(input);
+  if (!validated.success) {
+    return {
+      success: false,
+      error: 'Revisa los campos',
+      fieldErrors: validated.error.flatten().fieldErrors as Record<string, string[]>,
+    };
+  }
+
+  const { propertyId, plan, maxUnits } = validated.data;
+
+  const property = await db.query.properties.findFirst({
+    where: eq(properties.id, propertyId),
+    columns: { id: true, organizationId: true },
+  });
+  if (!property) return { success: false, error: 'Propiedad no encontrada' };
+
+  try {
+    await db.transaction(async (tx) => {
+      await tx
+        .update(properties)
+        .set({ plan, maxUnits, updatedAt: new Date() })
+        .where(eq(properties.id, propertyId));
+
+      await tx.insert(superAdminAccessLog).values({
+        superAdminUserId: session.user.id,
+        organizationId: property.organizationId,
+        action: 'update_property_limits',
+        reason: `propertyId=${propertyId} plan=${plan} maxUnits=${maxUnits}`,
+      });
+    });
+  } catch (error) {
+    console.error('updatePropertyLimitsAction failed:', error);
+    return { success: false, error: 'No se pudo actualizar' };
+  }
+
+  revalidatePath(`/admin/organizations/${property.organizationId}`);
   return { success: true, data: undefined };
 }
