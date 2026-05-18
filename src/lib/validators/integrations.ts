@@ -7,6 +7,7 @@ const credentialsSchema = z.object({
   hotelId: z.string().min(1, 'Hotel ID is required'),
   endpointUrl: z.string().url('Invalid endpoint URL'),
   accessType: z.enum(['api_call', 'webhook']).default('webhook'),
+  isTestMode: z.boolean().optional().default(false),
   zodomusWebhookUrl: z.string().optional(),
   zodomusWebhookKey: z.string().optional(),
   airbnbWebhookUrl: z.string().optional(),

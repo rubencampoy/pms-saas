@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
+import { AirbnbOnboarding } from '@/components/settings/airbnb-onboarding';
 import {
   saveIntegrationConfig,
   validateConnection,
@@ -57,6 +58,21 @@ interface PropertyIntegration {
   ratePlanMappings: RatePlanMapping[];
   localRoomTypes: LocalRoomType[];
   localRatePlans: LocalRatePlan[];
+  airbnbHost?: {
+    id: string;
+    hostStatus: string;
+    hostStatusCode: string | null;
+    oauthCompletedAt: string | null;
+  } | null;
+  airbnbListings?: Array<{
+    id: string;
+    airbnbListingId: string;
+    listingName: string | null;
+    propertyType: string | null;
+    isActivated: boolean;
+    roomTypeId: string | null;
+    propertyId: string | null;
+  }>;
 }
 
 interface LogEntry {
@@ -91,6 +107,7 @@ export function ChannelsClient({ propertyIntegrations }: Props) {
   const [zodomusWebhookKey, setZodomusWebhookKey] = useState(current.decryptedCredentials?.zodomusWebhookKey ?? '');
   const [airbnbWebhookUrl, setAirbnbWebhookUrl] = useState(current.decryptedCredentials?.airbnbWebhookUrl ?? '');
   const [airbnbWebhookKey, setAirbnbWebhookKey] = useState(current.decryptedCredentials?.airbnbWebhookKey ?? '');
+  const [isTestMode, setIsTestMode] = useState(current.decryptedCredentials?.isTestMode === true);
 
   // Status
   const [saving, setSaving] = useState(false);
@@ -164,6 +181,7 @@ export function ChannelsClient({ propertyIntegrations }: Props) {
       setZodomusWebhookKey(pi.decryptedCredentials?.zodomusWebhookKey ?? '');
       setAirbnbWebhookUrl(pi.decryptedCredentials?.airbnbWebhookUrl ?? '');
       setAirbnbWebhookKey(pi.decryptedCredentials?.airbnbWebhookKey ?? '');
+      setIsTestMode(pi.decryptedCredentials?.isTestMode === true);
       setTestResult(null);
       setMessage(null);
 
@@ -209,6 +227,7 @@ export function ChannelsClient({ propertyIntegrations }: Props) {
     hotelId,
     endpointUrl,
     accessType,
+    isTestMode,
     zodomusWebhookUrl: zodomusWebhookUrl || undefined,
     zodomusWebhookKey: zodomusWebhookKey || undefined,
     airbnbWebhookUrl: airbnbWebhookUrl || undefined,
@@ -507,6 +526,19 @@ export function ChannelsClient({ propertyIntegrations }: Props) {
                 placeholder={t('endpointUrlPlaceholder')}
                 className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0d1b2a] text-sm px-3 py-2 text-slate-900 dark:text-white placeholder:text-slate-400"
               />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="isTestMode"
+                checked={isTestMode}
+                onChange={(e) => setIsTestMode(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-[#137fec] focus:ring-[#137fec]"
+              />
+              <label htmlFor="isTestMode" className="text-sm text-slate-700 dark:text-slate-300">
+                Test / Demo mode (Zodomus sandbox)
+              </label>
             </div>
 
             <div>
@@ -1092,6 +1124,17 @@ export function ChannelsClient({ propertyIntegrations }: Props) {
             </div>
           )}
         </div>
+      )}
+
+      {/* ── Airbnb Integration ── */}
+      {current.integration && (
+        <AirbnbOnboarding
+          integrationId={current.integration.id}
+          propertyId={current.property.id}
+          airbnbHost={current.airbnbHost ?? null}
+          airbnbListings={current.airbnbListings ?? []}
+          localRoomTypes={current.localRoomTypes.map((rt) => ({ id: rt.id, name: rt.name }))}
+        />
       )}
     </div>
   );

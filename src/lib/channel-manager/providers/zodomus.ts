@@ -1,5 +1,5 @@
 import { format, addDays } from 'date-fns';
-import { SyncDirection, SyncAction, SyncStatus, RETRY_ATTEMPTS, RETRY_BASE_DELAY_MS } from '@/lib/constants/channel-manager';
+import { SyncDirection, SyncAction, SyncStatus, RETRY_ATTEMPTS, RETRY_BASE_DELAY_MS, AIRBNB_CHANNEL_ID, AIRBNB_PRICE_MODEL_ID } from '@/lib/constants/channel-manager';
 import type {
   ChannelManagerProvider,
   CMConfig,
@@ -490,8 +490,11 @@ export const zodomusProvider: ChannelManagerProvider = {
     const start = Date.now();
 
     try {
-      const channels = await fetchChannels(config);
-      console.log(`[Zodomus] pushAvailability: ${channels.length} channels found: ${channels.map(c => `${c.channel}(${c.id})`).join(', ')}`);
+      const allChannels = await fetchChannels(config);
+      // Airbnb uses a dedicated sync path (airbnb-calendar) with listing-specific propertyId,
+      // so we exclude it from the generic availability push which uses config.hotelId.
+      const channels = allChannels.filter(c => c.id !== AIRBNB_CHANNEL_ID);
+      console.log(`[Zodomus] pushAvailability: ${allChannels.length} channels found (${channels.length} after excluding Airbnb): ${channels.map(c => `${c.channel}(${c.id})`).join(', ')}`);
 
       if (channels.length === 0) {
         console.log(`[Zodomus] pushAvailability: no channels → skipping`);
@@ -683,8 +686,11 @@ export const zodomusProvider: ChannelManagerProvider = {
     const start = Date.now();
 
     try {
-      const channels = await fetchChannels(config);
-      console.log(`[Zodomus] pushRates: ${channels.length} channels found`);
+      const allChannels = await fetchChannels(config);
+      // Airbnb uses a dedicated sync path (airbnb-calendar) with listing-specific propertyId,
+      // so we exclude it from the generic rates push which uses config.hotelId.
+      const channels = allChannels.filter(c => c.id !== AIRBNB_CHANNEL_ID);
+      console.log(`[Zodomus] pushRates: ${allChannels.length} channels found (${channels.length} after excluding Airbnb)`);
 
       if (channels.length === 0) {
         return { status: SyncStatus.SUCCESS, updatesProcessed: 0 };
@@ -833,7 +839,8 @@ export const zodomusProvider: ChannelManagerProvider = {
     const start = Date.now();
 
     try {
-      const channels = await fetchChannels(config);
+      // Exclude Airbnb — it uses a dedicated sync path with listing-specific propertyId
+      const channels = (await fetchChannels(config)).filter(c => c.id !== AIRBNB_CHANNEL_ID);
       if (channels.length === 0) {
         return { status: SyncStatus.SUCCESS, updatesProcessed: 0 };
       }
@@ -960,7 +967,8 @@ export const zodomusProvider: ChannelManagerProvider = {
    * Deduplicates rooms by ID across channels.
    */
   async fetchExternalRoomTypes(config: CMConfig): Promise<ExternalRoomType[]> {
-    const channels = await fetchChannels(config);
+    // Exclude Airbnb — it uses listing-specific propertyId, not config.hotelId
+    const channels = (await fetchChannels(config)).filter(c => c.id !== AIRBNB_CHANNEL_ID);
 
     if (channels.length === 0) {
       return [];
@@ -995,7 +1003,8 @@ export const zodomusProvider: ChannelManagerProvider = {
    * Deduplicates by room+rate combination across channels.
    */
   async fetchExternalRatePlans(config: CMConfig): Promise<ExternalRatePlan[]> {
-    const channels = await fetchChannels(config);
+    // Exclude Airbnb — it uses listing-specific propertyId, not config.hotelId
+    const channels = (await fetchChannels(config)).filter(c => c.id !== AIRBNB_CHANNEL_ID);
 
     if (channels.length === 0) {
       return [];
@@ -1258,3 +1267,290 @@ export const zodomusProvider: ChannelManagerProvider = {
     }
   },
 };
+
+// ── Airbnb-Specific Functions ──
+// These are NOT on the ChannelManagerProvider interface — they are unique to
+// the Airbnb channel (channelId=3) and operate through Zodomus as intermediary.
+
+import { airbnbRateLimiter } from '@/lib/channel-manager/rate-limiter';
+import type {
+  AirbnbHostActivationResult,
+  AirbnbHostStatusResult,
+  AirbnbHostInfo,
+  AirbnbListing,
+  AirbnbCalendarOperation,
+  AirbnbCalendarDay,
+  AirbnbAvailabilityRules,
+  AirbnbPricingSettings,
+} from '@/lib/channel-manager/types';
+
+async function airbnbPost<T>(config: CMConfig, endpoint: string, body: Record<string, unknown>): Promise<T> {
+  await airbnbRateLimiter.throttle();
+  const response = await fetchWithRetry(
+    `${baseUrl(config)}/${endpoint}`,
+    {
+      method: 'POST',
+      headers: buildHeaders(config, 'application/json'),
+      body: JSON.stringify(body),
+    },
+  );
+  const text = await response.text();
+  const parsed = safeParseJson(text);
+  if (isZodomusError(parsed)) {
+    throw new Error(`Airbnb ${endpoint}: ${getZodomusErrorMessage(parsed)}`);
+  }
+  return parsed as T;
+}
+
+async function airbnbGet<T>(config: CMConfig, endpoint: string, params?: Record<string, unknown>): Promise<T> {
+  await airbnbRateLimiter.throttle();
+  // Zodomus docs show GET with JSON body, but fetch() forbids body on GET/HEAD.
+  // Send params as query string instead — Zodomus accepts both forms.
+  let url = `${baseUrl(config)}/${endpoint}`;
+  if (params) {
+    const qs = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) {
+      if (value !== undefined && value !== null) {
+        qs.set(key, String(value));
+      }
+    }
+    const qsStr = qs.toString();
+    if (qsStr) url += `?${qsStr}`;
+  }
+  const response = await fetchWithRetry(url, {
+    method: 'GET',
+    headers: buildHeaders(config),
+  });
+  const text = await response.text();
+  const parsed = safeParseJson(text);
+  if (isZodomusError(parsed)) {
+    throw new Error(`Airbnb ${endpoint}: ${getZodomusErrorMessage(parsed)}`);
+  }
+  return parsed as T;
+}
+
+/** 1. Activate a new Airbnb host on Zodomus. Returns token + client_id for OAuth. */
+export async function airbnbActivateHost(config: CMConfig): Promise<AirbnbHostActivationResult> {
+  const data = await airbnbPost<{ token: number | string; client_id: string }>(
+    config,
+    'airbnb-host-activation',
+    {},
+  );
+  return {
+    token: String(data.token),
+    clientId: data.client_id,
+  };
+}
+
+/** 2. Check the status of an Airbnb host. */
+export async function airbnbGetHostStatus(config: CMConfig, token: string): Promise<AirbnbHostStatusResult> {
+  const data = await airbnbGet<{ host: { statusCode: string; statusMessage: string } }>(
+    config,
+    'airbnb-host-status',
+    { token },
+  );
+  return data.host;
+}
+
+/** 3. Get the host profile information from Airbnb. */
+export async function airbnbGetHostInfo(config: CMConfig, token: string): Promise<AirbnbHostInfo> {
+  const data = await airbnbGet<{ response: { user: AirbnbHostInfo } }>(
+    config,
+    'airbnb-host-info',
+    { token },
+  );
+  return data.response.user;
+}
+
+/** 4. Get all listings managed by the host. */
+export async function airbnbGetListings(config: CMConfig, token: string): Promise<AirbnbListing[]> {
+  const data = await airbnbGet<{ response: { listings: AirbnbListing[] } }>(
+    config,
+    'airbnb-listings',
+    { token },
+  );
+  return data.response?.listings ?? [];
+}
+
+/** 5. Activate a property on Zodomus for Airbnb (channelId=3, priceModelId=4). */
+export async function airbnbActivateProperty(
+  config: CMConfig,
+  listingId: string,
+  token: string,
+): Promise<{ roomId: string; rateId: string }> {
+  await airbnbPost(config, 'property-activation', {
+    channelId: AIRBNB_CHANNEL_ID,
+    propertyId: listingId,
+    priceModelId: AIRBNB_PRICE_MODEL_ID,
+    token: Number(token),
+  });
+  return {
+    roomId: `${listingId}01`,
+    rateId: `${listingId}0001`,
+  };
+}
+
+/** 6. Set the pricing/availability model to STANDARD for a listing. */
+export async function airbnbSetPricingModel(config: CMConfig, listingId: string): Promise<void> {
+  await airbnbPost(config, 'airbnb-pricing-availability', {
+    channelId: AIRBNB_CHANNEL_ID,
+    propertyId: listingId,
+    pricingAvailabilityModelType: 'STANDARD',
+    inModelTransition: 'false',
+    clearIncompatibleSettings: 'false',
+  });
+}
+
+/** 7. Push calendar updates (price + availability + restrictions in one call). */
+export async function airbnbPushCalendar(
+  config: CMConfig,
+  listingId: string,
+  operations: AirbnbCalendarOperation[],
+  log?: LogCallback,
+): Promise<SyncResult> {
+  const startMs = Date.now();
+  try {
+    console.log(`[Airbnb] airbnbPushCalendar: sending ${operations.length} operations for listing ${listingId}...`);
+    const postStart = Date.now();
+    await airbnbPost(config, 'airbnb-calendar', {
+      channelId: AIRBNB_CHANNEL_ID,
+      propertyId: listingId,
+      operations,
+    });
+    console.log(`[Airbnb] airbnbPushCalendar: SUCCESS in ${Date.now() - postStart}ms for listing ${listingId}`);
+
+    const result: SyncResult = {
+      status: SyncStatus.SUCCESS,
+      updatesProcessed: operations.length,
+    };
+
+    if (log) {
+      await log({
+        direction: SyncDirection.OUTBOUND,
+        action: SyncAction.AIRBNB_PUSH_CALENDAR,
+        status: SyncStatus.SUCCESS,
+        request: JSON.stringify({ propertyId: listingId, operationCount: operations.length }),
+        durationMs: Date.now() - startMs,
+      });
+    }
+
+    return result;
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+    console.error(`[Airbnb] airbnbPushCalendar: FAILED for listing ${listingId}: ${errorMessage}`);
+    if (log) {
+      await log({
+        direction: SyncDirection.OUTBOUND,
+        action: SyncAction.AIRBNB_PUSH_CALENDAR,
+        status: SyncStatus.ERROR,
+        request: JSON.stringify({ propertyId: listingId, operationCount: operations.length }),
+        errorMessage,
+        durationMs: Date.now() - startMs,
+      });
+    }
+    return { status: SyncStatus.ERROR, updatesProcessed: 0, errorMessage };
+  }
+}
+
+/** 8. Read the Airbnb calendar for a date range. */
+export async function airbnbGetCalendar(
+  config: CMConfig,
+  listingId: string,
+  startDate: string,
+  endDate: string,
+): Promise<AirbnbCalendarDay[]> {
+  const data = await airbnbGet<{ response: { calendar: { days: AirbnbCalendarDay[] } } }>(
+    config,
+    'airbnb-calendar',
+    { propertyId: listingId, startDate, endDate },
+  );
+  return data.response?.calendar?.days ?? [];
+}
+
+/** 9. Set availability rules for a listing (min/max nights, lead time, check-in days, etc.). */
+export async function airbnbSetAvailabilityRules(
+  config: CMConfig,
+  listingId: string,
+  rules: AirbnbAvailabilityRules,
+): Promise<void> {
+  await airbnbPost(config, 'airbnb-availability-rules', {
+    propertyId: listingId,
+    pnaModel: 'STANDARD',
+    ...rules,
+  });
+}
+
+/** 10. Set pricing settings for a listing (default price, weekend price, fees, taxes). */
+export async function airbnbSetPricingSettings(
+  config: CMConfig,
+  listingId: string,
+  settings: AirbnbPricingSettings,
+): Promise<void> {
+  await airbnbPost(config, 'airbnb-pricing-settings', {
+    propertyId: listingId,
+    pnaModel: 'STANDARD',
+    ...settings,
+  });
+}
+
+/** 11. Accept a request-to-book reservation. */
+export async function airbnbAcceptReservation(
+  config: CMConfig,
+  token: string,
+  reservationId: string,
+): Promise<void> {
+  await airbnbPost(config, 'airbnb-reservations', {
+    channelId: AIRBNB_CHANNEL_ID,
+    token,
+    reservationId,
+    action: 'accept',
+  });
+}
+
+/** 12. Decline a request-to-book reservation. */
+export async function airbnbDeclineReservation(
+  config: CMConfig,
+  token: string,
+  reservationId: string,
+): Promise<void> {
+  await airbnbPost(config, 'airbnb-reservations', {
+    channelId: AIRBNB_CHANNEL_ID,
+    token,
+    reservationId,
+    action: 'decline',
+  });
+}
+
+/** 13. Get full details of a webhook notification by typeId. */
+export async function airbnbGetWebhookNotification(
+  config: CMConfig,
+  typeId: string,
+): Promise<Record<string, unknown>> {
+  const data = await airbnbGet<{ notification: Record<string, unknown> }>(
+    config,
+    'airbnb-webhook-notifications',
+    { typeId },
+  );
+  return data.notification;
+}
+
+/**
+ * Build the OAuth2 authorization URL for an Airbnb host.
+ * Test env uses Zodomus proxy; production redirects to Airbnb directly.
+ */
+export function buildAirbnbOAuthUrl(
+  clientId: string,
+  token: string,
+  isProduction: boolean,
+  includeMessaging = false,
+): string {
+  const scope = includeMessaging
+    ? 'property_management,messages_read,messages_write'
+    : 'property_management';
+
+  if (isProduction) {
+    return `https://www.airbnb.com/oauth2/auth?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent('https://api.zodomus.com/airbnb-webhook-redirect')}&scope=${encodeURIComponent(scope)}&state=${encodeURIComponent(token)}`;
+  }
+
+  return `https://api.zodomus.com/airbnb-oauth2-tests?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent('https://api.zodomus.com/airbnb-webhook-redirect-test')}&scope=${encodeURIComponent(scope)}&state=${encodeURIComponent(token)}`;
+}

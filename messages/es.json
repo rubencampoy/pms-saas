@@ -461,6 +461,17 @@
     "save": "Guardar",
     "cancel": "Cancelar"
   },
+  "moveConfirmation": {
+    "title": "Alerta!",
+    "roomType": "Tipo de habitación",
+    "room": "#",
+    "dates": "Fechas",
+    "price": "Precio",
+    "newTotal": "Nuevo Total",
+    "confirmHigherCharge": "Confirmar cargo superior",
+    "overwrite": "Sobreescribir",
+    "cancel": "Cancelar"
+  },
   "rateOverride": {
     "title": "Precios Personalizados",
     "night": "noche",

@@ -40,7 +40,7 @@ export const roomTypeMappings = pgTable(
       .notNull()
       .references(() => integrations.id, { onDelete: 'cascade' }),
     roomTypeId: uuid('room_type_id').notNull().references(() => roomTypes.id),
-    externalRoomTypeId: varchar('external_room_type_id', { length: 100 }).notNull(),
+    externalRoomTypeId: varchar('external_room_type_id', { length: 128 }).notNull(),
     externalRoomTypeName: varchar('external_room_type_name', { length: 255 }).notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -64,9 +64,9 @@ export const ratePlanMappings = pgTable(
       .notNull()
       .references(() => integrations.id, { onDelete: 'cascade' }),
     ratePlanId: uuid('rate_plan_id').notNull().references(() => ratePlans.id),
-    externalRatePlanId: varchar('external_rate_plan_id', { length: 100 }).notNull(),
+    externalRatePlanId: varchar('external_rate_plan_id', { length: 128 }).notNull(),
     externalRatePlanName: varchar('external_rate_plan_name', { length: 255 }).notNull(),
-    externalRoomTypeId: varchar('external_room_type_id', { length: 100 }),
+    externalRoomTypeId: varchar('external_room_type_id', { length: 128 }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

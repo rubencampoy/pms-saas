@@ -11,11 +11,12 @@ export interface CMConfig {
   hotelId: string;
   endpointUrl: string;
   accessType: ZodomusAccessType;
+  isTestMode?: boolean;
   zodomusWebhookUrl?: string;
   zodomusWebhookKey?: string;
   airbnbWebhookUrl?: string;
   airbnbWebhookKey?: string;
-  [key: string]: string | undefined;
+  [key: string]: string | boolean | undefined;
 }
 
 // ── Outbound Updates ──
@@ -126,6 +127,125 @@ export interface ProvisionResult {
    *  Key = externalRoomTypeId, Value = array of externalRatePlanIds belonging to that room. */
   roomRateMappings?: Record<string, string[]>;
 }
+
+// ── Airbnb-Specific Types ──
+
+export interface AirbnbHostActivationResult {
+  token: string;
+  clientId: string;
+}
+
+export interface AirbnbHostStatusResult {
+  statusCode: string;
+  statusMessage: string;
+}
+
+export interface AirbnbHostInfo {
+  email: string;
+  firstName: string;
+  id: number;
+  lastName: string;
+  pictureUrl?: string;
+  idStr: string;
+}
+
+export interface AirbnbListing {
+  id: string;
+  name: string;
+  propertyTypeGroup?: string;
+  propertyTypeCategory?: string;
+  roomTypeCategory?: string;
+  bedrooms?: number;
+  bathrooms?: number;
+  beds?: number;
+  personCapacity?: number;
+  hasAvailability?: boolean;
+  synchronizationCategory?: string;
+  listingApprovalStatus?: {
+    statusCategory: string;
+    notes?: string;
+  };
+  idStr?: string;
+}
+
+export interface AirbnbCalendarOperation {
+  dates: string[]; // ["YYYY-MM-DD:YYYY-MM-DD"]
+  dailyPrice?: number;
+  availability?: 'available' | 'unavailable' | 'default';
+  minNights?: number;
+  maxNights?: number;
+  closedToArrival?: boolean;
+  closedToDeparture?: boolean;
+  availableCount?: number;
+  notes?: string;
+}
+
+export interface AirbnbCalendarDay {
+  date: string;
+  availability: string;
+  availabilityType?: string;
+  dailyPrice: number;
+  minNights: number;
+  maxNights: number;
+  closedToArrival: boolean;
+  closedToDeparture: boolean;
+  notes?: string;
+}
+
+export interface AirbnbAvailabilityRules {
+  defaultMinNights?: number;
+  defaultMaxNights?: number;
+  bookingLeadTime?: { hours: number; allowRequestToBook: number };
+  maxDaysNotice?: { days: number };
+  turnoverDays?: number;
+  dayOfWeekCheckIn?: Array<{ dayOfWeek: number }>;
+  dayOfWeekCheckOut?: Array<{ dayOfWeek: number }>;
+  dayOfWeekMinNights?: Array<{ dayOfWeek: number; minNights: number }>;
+  seasonalMinNights?: { startDate: string; endDate: string; minNights: number };
+}
+
+export interface AirbnbPricingSettings {
+  listingCurrency: string;
+  defaultDailyPrice: number;
+  weekendPrice?: number;
+  guestsIncluded?: number;
+  pricePerExtraPerson?: number;
+}
+
+export interface AirbnbWebhookReservation {
+  type: 'reservation';
+  webhookKey: string;
+  token?: string;
+  channelId: number;
+  propertyId: string;
+  reservationId: string;
+  reservationstatus: string;
+}
+
+export interface AirbnbWebhookNotification {
+  type: 'notification';
+  webhookKey: string;
+  channelId: number;
+  propertyId?: string;
+  notificationType: number;
+  notificationSubtype: number;
+  notificationTypeId: string;
+}
+
+export interface AirbnbWebhookAvailabilityCheck {
+  type: 'availability_check';
+  webhookKey: string;
+  channelId: number;
+  propertyId: string;
+  notificationType: 3;
+  startDate: string;
+  nights: number;
+}
+
+export type AirbnbWebhookPayload =
+  | AirbnbWebhookReservation
+  | AirbnbWebhookNotification
+  | AirbnbWebhookAvailabilityCheck;
 
 // ── Provider Interface ──
 

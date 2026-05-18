@@ -51,6 +51,7 @@ export const moveReservationSchema = z.object({
   unitId: z.string().uuid(),
   checkInDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date'),
   checkOutDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date'),
+  newTotalAmount: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Invalid amount').optional(),
 });
 
 export const unassignRoomSchema = z.object({

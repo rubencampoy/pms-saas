@@ -8,11 +8,13 @@ import {
   ratePlanMappingRepo,
   channelManagerLogRepo,
 } from '@/server/repositories/integration.repo';
+import { airbnbListingRepo } from '@/server/repositories/airbnb-listing.repo';
 import { reservationRepo } from '@/server/repositories/reservation.repo';
 import { rateRepo } from '@/server/repositories/rate.repo';
 import { guestRepo } from '@/server/repositories/guest.repo';
 import { reservationService } from '@/server/services/reservation.service';
-import type { CMConfig, AvailabilityUpdate, RateUpdate, IncomingReservation, LogCallback } from '@/lib/channel-manager/types';
+import { airbnbPushCalendar } from '@/lib/channel-manager/providers/zodomus';
+import type { CMConfig, AvailabilityUpdate, RateUpdate, IncomingReservation, LogCallback, AirbnbCalendarOperation } from '@/lib/channel-manager/types';
 
 function parseCredentials(encrypted: string): CMConfig {
   const json = decrypt(encrypted);
@@ -190,25 +192,22 @@ export const channelManagerSyncService = {
       console.log(`[ChannelManager] fullSync: ${rtMappings.length} room mappings, ${rpMappings.length} rate mappings`);
       console.log(`[ChannelManager] fullSync: syncing dates ${today} → ${endDate}`);
 
-      // Push availability for all mapped room types
+      // Push availability for all mapped room types (batch: 2 queries per room type instead of 730)
       const availUpdates: AvailabilityUpdate[] = [];
 
       for (const rtMapping of rtMappings) {
-        for (let d = new Date(today); d <= new Date(endDate); d = addDays(d, 1)) {
-          const dateStr = format(d, 'yyyy-MM-dd');
-          const nextDay = format(addDays(d, 1), 'yyyy-MM-dd');
+        const availMap = await reservationRepo.batchAvailability(
+          organizationId,
+          rtMapping.roomTypeId,
+          today,
+          endDate,
+        );
 
-          const availability = await reservationRepo.countAvailableUnits(
-            organizationId,
-            rtMapping.roomTypeId,
-            dateStr,
-            nextDay,
-          );
-
+        for (const [dateStr, available] of availMap) {
           availUpdates.push({
             externalRoomTypeId: rtMapping.externalRoomTypeId,
             date: dateStr,
-            available: availability.availableUnits,
+            available,
           });
         }
       }
@@ -229,66 +228,92 @@ export const channelManagerSyncService = {
       }
 
       // Push rates only for valid room-rate combinations.
-      // Each rate plan mapping stores which external room type it belongs to.
-      // Only push rates where the external room type matches.
-      const rateUpdates: RateUpdate[] = [];
-
-      // Build a lookup: externalRoomTypeId → local roomTypeId
-      const extRoomToLocal = new Map<string, string>();
-      for (const rtMapping of rtMappings) {
-        extRoomToLocal.set(rtMapping.externalRoomTypeId, rtMapping.roomTypeId);
-      }
-
-      for (const rpMapping of rpMappings) {
-        if (!rpMapping.externalRoomTypeId) {
-          console.warn(`[ChannelManager] fullSync: rate plan ${rpMapping.externalRatePlanId} has no externalRoomTypeId — skipping. Re-run Provision to fix.`);
-          continue;
-        }
-
-        const localRoomTypeId = extRoomToLocal.get(rpMapping.externalRoomTypeId);
-        if (!localRoomTypeId) {
-          console.warn(`[ChannelManager] fullSync: rate plan ${rpMapping.externalRatePlanId} → external room ${rpMapping.externalRoomTypeId} has no local room mapping, skipping`);
-          continue;
-        }
-
-        const dbRates = await rateRepo.findByRatePlanAndRoomType(
-          organizationId,
-          rpMapping.ratePlanId,
-          localRoomTypeId,
-          today,
-          endDate,
-        );
-
-        for (const rate of dbRates) {
-          rateUpdates.push({
-            externalRoomTypeId: rpMapping.externalRoomTypeId,
-            externalRatePlanId: rpMapping.externalRatePlanId,
-            date: rate.date,
-            amount: rate.amount,
-            currency: rate.currency,
-          });
-        }
-      }
-
-      console.log(`[ChannelManager] fullSync: ${rateUpdates.length} rate updates to push`);
-
+      console.log(`[ChannelManager] fullSync: starting rates section...`);
       let rateStatus = SyncStatus.SUCCESS;
-      if (rateUpdates.length > 0) {
-        console.log(`[ChannelManager] fullSync: sample rate update:`, JSON.stringify(rateUpdates[0]));
-        const rateResult = await provider.pushRates(config, rateUpdates, log);
-        console.log(`[ChannelManager] fullSync: rates push result: ${rateResult.status}, processed: ${rateResult.updatesProcessed}`);
-        if (rateResult.errorMessage) {
-          console.error(`[ChannelManager] fullSync: rates error: ${rateResult.errorMessage}`);
+
+      try {
+        const rateUpdates: RateUpdate[] = [];
+
+        // Build a lookup: externalRoomTypeId → local roomTypeId
+        const extRoomToLocal = new Map<string, string>();
+        for (const rtMapping of rtMappings) {
+          extRoomToLocal.set(rtMapping.externalRoomTypeId, rtMapping.roomTypeId);
         }
-        rateStatus = rateResult.status;
-      } else {
-        console.log(`[ChannelManager] fullSync: no rate updates to push (no rates in DB for this date range)`);
+
+        console.log(`[ChannelManager] fullSync: processing ${rpMappings.length} rate plan mappings`);
+
+        for (const rpMapping of rpMappings) {
+          if (!rpMapping.externalRoomTypeId) {
+            console.warn(`[ChannelManager] fullSync: rate plan ${rpMapping.externalRatePlanId} has no externalRoomTypeId — skipping. Re-run Provision to fix.`);
+            continue;
+          }
+
+          const localRoomTypeId = extRoomToLocal.get(rpMapping.externalRoomTypeId);
+          if (!localRoomTypeId) {
+            console.warn(`[ChannelManager] fullSync: rate plan ${rpMapping.externalRatePlanId} → external room ${rpMapping.externalRoomTypeId} has no local room mapping, skipping`);
+            continue;
+          }
+
+          console.log(`[ChannelManager] fullSync: fetching rates for plan ${rpMapping.ratePlanId} / room ${localRoomTypeId}`);
+
+          const dbRates = await rateRepo.findByRatePlanAndRoomType(
+            organizationId,
+            rpMapping.ratePlanId,
+            localRoomTypeId,
+            today,
+            endDate,
+          );
+
+          console.log(`[ChannelManager] fullSync: found ${dbRates.length} rates in DB`);
+
+          for (const rate of dbRates) {
+            rateUpdates.push({
+              externalRoomTypeId: rpMapping.externalRoomTypeId,
+              externalRatePlanId: rpMapping.externalRatePlanId,
+              date: rate.date,
+              amount: rate.amount,
+              currency: rate.currency,
+            });
+          }
+        }
+
+        console.log(`[ChannelManager] fullSync: ${rateUpdates.length} rate updates to push`);
+
+        if (rateUpdates.length > 0) {
+          console.log(`[ChannelManager] fullSync: sample rate update:`, JSON.stringify(rateUpdates[0]));
+          const rateResult = await provider.pushRates(config, rateUpdates, log);
+          console.log(`[ChannelManager] fullSync: rates push result: ${rateResult.status}, processed: ${rateResult.updatesProcessed}`);
+          if (rateResult.errorMessage) {
+            console.error(`[ChannelManager] fullSync: rates error: ${rateResult.errorMessage}`);
+          }
+          rateStatus = rateResult.status;
+        } else {
+          console.log(`[ChannelManager] fullSync: no rate updates to push (no rates in DB for this date range)`);
+        }
+      } catch (rateErr) {
+        console.error(`[ChannelManager] fullSync: RATES SECTION CRASHED:`, rateErr instanceof Error ? rateErr.message : rateErr);
+        console.error(`[ChannelManager] fullSync: rate error stack:`, rateErr instanceof Error ? rateErr.stack : 'no stack');
+        rateStatus = SyncStatus.ERROR;
       }
 
-      // Use worst status between availability and rates
-      const finalStatus = (availStatus === SyncStatus.ERROR || rateStatus === SyncStatus.ERROR)
+      // ── Airbnb dedicated sync ──
+      // Airbnb uses its own calendar endpoint with listing-specific propertyIds,
+      // so we sync it separately after the generic channel push.
+      let airbnbStatus = SyncStatus.SUCCESS;
+      try {
+        console.log(`[ChannelManager] fullSync: starting Airbnb calendar sync...`);
+        await this.syncAirbnbCalendar(organizationId, propertyId, integration.id);
+        console.log(`[ChannelManager] fullSync: Airbnb calendar sync completed`);
+      } catch (airbnbErr) {
+        console.error(`[ChannelManager] fullSync: Airbnb sync error:`, airbnbErr instanceof Error ? airbnbErr.message : airbnbErr);
+        airbnbStatus = SyncStatus.ERROR;
+      }
+
+      // Use worst status between availability, rates, and Airbnb
+      const finalStatus = (availStatus === SyncStatus.ERROR || rateStatus === SyncStatus.ERROR || airbnbStatus === SyncStatus.ERROR)
         ? SyncStatus.ERROR
         : SyncStatus.SUCCESS;
+      console.log(`[ChannelManager] fullSync: final status: ${finalStatus}`);
       await integrationRepo.updateLastSync(
         organizationId,
         integration.id,
@@ -380,5 +405,130 @@ export const channelManagerSyncService = {
     );
 
     return reservation;
+  },
+
+  /**
+   * Sync calendar for Airbnb listings.
+   * Airbnb uses a unified calendar API that combines price + availability + restrictions
+   * in a single POST call (different from generic Zodomus push endpoints).
+   */
+  async syncAirbnbCalendar(
+    organizationId: string,
+    propertyId: string,
+    integrationId?: string,
+  ) {
+    let targetIntegrations;
+    if (integrationId) {
+      const integration = await integrationRepo.findById(organizationId, integrationId);
+      targetIntegrations = integration ? [integration] : [];
+    } else {
+      targetIntegrations = await integrationRepo.findActiveByProperty(organizationId, propertyId);
+    }
+
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const endDate = format(addDays(new Date(), MAX_SYNC_DAYS), 'yyyy-MM-dd');
+
+    for (const integration of targetIntegrations) {
+      const config = parseCredentials(integration.credentials);
+      const log = makeLogCallback(organizationId, integration.id);
+
+      // Find activated Airbnb listings for this property
+      const listings = await airbnbListingRepo.findActivatedByProperty(
+        organizationId,
+        propertyId,
+      );
+
+      console.log(`[ChannelManager] syncAirbnbCalendar: ${listings.length} activated listing(s) for property ${propertyId}`);
+
+      for (const listing of listings) {
+        if (!listing.roomTypeId || !listing.airbnbListingId) continue;
+
+        // Get availability per date
+        const availMap = await reservationRepo.batchAvailability(
+          organizationId,
+          listing.roomTypeId,
+          today,
+          endDate,
+        );
+
+        // Get rates for this room type (use first rate plan found)
+        const rpMappings = await ratePlanMappingRepo.findByIntegration(
+          organizationId,
+          integration.id,
+        );
+        const ratePlanMapping = rpMappings.find(
+          (rp) => rp.externalRoomTypeId === listing.airbnbListingId
+            || rp.externalRoomTypeId === listing.airbnbRoomId,
+        );
+
+        // Build a rate lookup map: date → { amount, minStay, maxStay, cta, ctd }
+        const rateMap = new Map<string, { amount: string; minStay: number; maxStay: number | null; closedToArrival: boolean; closedToDeparture: boolean }>();
+        if (ratePlanMapping) {
+          const dbRates = await rateRepo.findByRatePlanAndRoomType(
+            organizationId,
+            ratePlanMapping.ratePlanId,
+            listing.roomTypeId,
+            today,
+            endDate,
+          );
+          for (const rate of dbRates) {
+            rateMap.set(rate.date, {
+              amount: rate.amount,
+              minStay: rate.minStay ?? 1,
+              maxStay: rate.maxStay ?? 0,
+              closedToArrival: rate.closedToArrival ?? false,
+              closedToDeparture: rate.closedToDeparture ?? false,
+            });
+          }
+        }
+
+        // Build calendar operations — batch consecutive dates with same values
+        const operations: AirbnbCalendarOperation[] = [];
+        let currentDate = new Date(today);
+        const end = new Date(endDate);
+
+        while (currentDate <= end) {
+          const dateStr = format(currentDate, 'yyyy-MM-dd');
+          const available = availMap.get(dateStr) ?? 0;
+          const rate = rateMap.get(dateStr);
+
+          const op: AirbnbCalendarOperation = {
+            dates: [`${dateStr}:${dateStr}`],
+            availability: available > 0 ? 'available' : 'unavailable',
+          };
+
+          if (listing.isMultiUnit) {
+            op.availableCount = Math.max(0, available);
+          }
+
+          if (rate) {
+            op.dailyPrice = parseFloat(rate.amount);
+            op.minNights = rate.minStay;
+            if (rate.maxStay && rate.maxStay > 0) {
+              op.maxNights = rate.maxStay;
+            }
+            op.closedToArrival = rate.closedToArrival;
+            op.closedToDeparture = rate.closedToDeparture;
+          }
+
+          operations.push(op);
+          currentDate = addDays(currentDate, 1);
+        }
+
+        // Push to Airbnb (rate-limited)
+        console.log(`[ChannelManager] syncAirbnbCalendar: pushing ${operations.length} operations for listing ${listing.airbnbListingId}`);
+        const result = await airbnbPushCalendar(config, listing.airbnbListingId, operations, log);
+
+        await integrationRepo.updateLastSync(
+          organizationId,
+          integration.id,
+          result.status,
+        );
+
+        if (result.errorMessage) {
+          console.error(`[ChannelManager] syncAirbnbCalendar: error for listing ${listing.airbnbListingId}: ${result.errorMessage}`);
+        }
+      }
+    }
   },
 };

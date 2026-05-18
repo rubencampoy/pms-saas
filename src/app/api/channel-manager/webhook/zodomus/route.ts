@@ -1,9 +1,12 @@
+import { after } from 'next/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { zodomusWebhookSchema } from '@/lib/validators/integrations';
 import { integrationRepo, channelManagerLogRepo } from '@/server/repositories/integration.repo';
 import { channelManagerSyncService } from '@/server/services/channel-manager-sync.service';
 import { zodomusProvider } from '@/lib/channel-manager/providers/zodomus';
 import { SyncDirection, SyncAction, SyncStatus } from '@/lib/constants/channel-manager';
+
+export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   const webhookToken = request.headers.get('x-webhook-token');
@@ -43,20 +46,22 @@ export async function POST(request: NextRequest) {
     });
     const parsed = zodomusProvider.parseWebhookPayload(headers, validated.data);
 
-    // Process reservation (fire-and-forget for fast response)
-    channelManagerSyncService
-      .handleIncomingReservation(orgId, integration.id, parsed)
-      .catch((err) => {
+    // Run reservation processing after response is sent (keeps serverless function alive on Vercel)
+    after(async () => {
+      try {
+        await channelManagerSyncService.handleIncomingReservation(orgId, integration.id, parsed);
+      } catch (err) {
         console.error('[Webhook:Zodomus] Failed to process reservation:', err);
-        channelManagerLogRepo.create(orgId, {
+        await channelManagerLogRepo.create(orgId, {
           integrationId: integration.id,
           direction: SyncDirection.INBOUND,
           action: SyncAction.RECEIVE_RESERVATION,
           status: SyncStatus.ERROR,
           request: JSON.stringify(body),
           errorMessage: err instanceof Error ? err.message : 'Unknown error',
-        }).catch(console.error);
-      });
+        });
+      }
+    });
 
     return NextResponse.json({ status: 'accepted' }, { status: 200 });
   } catch (error) {

@@ -261,7 +261,7 @@ export async function assignUnit(
 }
 
 export async function moveReservation(
-  input: { reservationId: string; unitId: string; checkInDate: string; checkOutDate: string },
+  input: { reservationId: string; unitId: string; checkInDate: string; checkOutDate: string; newTotalAmount?: string },
 ): Promise<ActionResult<{ id: string }>> {
   try {
     const session = await auth();
@@ -283,6 +283,7 @@ export async function moveReservation(
         unitId: validated.data.unitId,
         checkInDate: validated.data.checkInDate,
         checkOutDate: validated.data.checkOutDate,
+        newTotalAmount: validated.data.newTotalAmount,
       },
     );
 

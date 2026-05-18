@@ -207,7 +207,7 @@ export const reservationService = {
   async moveReservation(
     organizationId: string,
     reservationId: string,
-    input: { unitId: string; checkInDate: string; checkOutDate: string },
+    input: { unitId: string; checkInDate: string; checkOutDate: string; newTotalAmount?: string },
   ) {
     const reservation = await reservationRepo.findById(organizationId, reservationId);
     if (!reservation) {
@@ -267,6 +267,7 @@ export const reservationService = {
       checkInDate: input.checkInDate,
       checkOutDate: input.checkOutDate,
       nights,
+      ...(input.newTotalAmount ? { totalAmount: input.newTotalAmount } : {}),
     });
 
     // Fire-and-forget: sync availability for both old and new room types/dates

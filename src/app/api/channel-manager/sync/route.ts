@@ -5,6 +5,8 @@ import { triggerSyncSchema } from '@/lib/validators/integrations';
 import { integrationRepo } from '@/server/repositories/integration.repo';
 import { channelManagerSyncService } from '@/server/services/channel-manager-sync.service';
 
+export const maxDuration = 60;
+
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
@@ -26,14 +28,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Integration not found' }, { status: 404 });
     }
 
-    // Fire-and-forget: full sync runs in background
-    channelManagerSyncService
-      .fullSync(orgId, integration.propertyId)
-      .catch((err) => console.error('[API:sync] Full sync failed:', err));
+    // Await sync directly — after() has limited budget on Vercel Hobby
+    await channelManagerSyncService.fullSync(orgId, integration.propertyId);
 
-    return NextResponse.json({ status: 'accepted' }, { status: 202 });
+    return NextResponse.json({ status: 'completed' }, { status: 200 });
   } catch (error) {
-    console.error('[API:sync] Error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('[API:sync] Full sync failed:', error);
+    return NextResponse.json(
+      { error: 'Sync failed', details: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 },
+    );
   }
 }

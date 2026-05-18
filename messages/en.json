@@ -461,6 +461,17 @@
     "save": "Save",
     "cancel": "Cancel"
   },
+  "moveConfirmation": {
+    "title": "Alert!",
+    "roomType": "Room Type",
+    "room": "#",
+    "dates": "Dates",
+    "price": "Price",
+    "newTotal": "New Total",
+    "confirmHigherCharge": "Confirm higher charge",
+    "overwrite": "Overwrite",
+    "cancel": "Cancel"
+  },
   "rateOverride": {
     "title": "Custom Pricing",
     "night": "night",

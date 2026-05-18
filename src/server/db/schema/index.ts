@@ -23,3 +23,5 @@ export * from './booking-engine-addons';
 export * from './integrations';
 export * from './room-type-images';
 export * from './room-blocks';
+export * from './airbnb-hosts';
+export * from './airbnb-listings';

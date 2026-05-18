@@ -1,0 +1,10 @@
+{
+  "functions": {
+    "src/app/api/channel-manager/sync/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/channel-manager/webhook/zodomus/route.ts": {
+      "maxDuration": 60
+    }
+  }
+}

@@ -330,10 +330,8 @@ export async function triggerFullSync(
       return { success: false, error: 'Integration not found' };
     }
 
-    // Fire-and-forget the full sync — pass integrationId to bypass isActive check
-    channelManagerSyncService
-      .fullSync(orgId, integration.propertyId, integration.id)
-      .catch((err) => console.error('[ChannelManager] Full sync failed:', err));
+    // Await sync directly — fire-and-forget gets killed on Vercel serverless
+    await channelManagerSyncService.fullSync(orgId, integration.propertyId, integration.id);
 
     return { success: true, data: undefined };
   } catch (error) {

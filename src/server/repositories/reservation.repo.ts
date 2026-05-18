@@ -186,6 +186,67 @@ export const reservationRepo = {
     };
   },
 
+  /**
+   * Batch availability for a room type across an entire date range.
+   * Uses only 2 DB queries total (vs 2 per day), then computes per-night
+   * concurrency in memory. Returns a Map of date → availableUnits.
+   */
+  async batchAvailability(
+    organizationId: string,
+    roomTypeId: string,
+    dateFrom: string,
+    dateTo: string,
+  ): Promise<Map<string, number>> {
+    // 1. Total active units (1 query)
+    const totalResult = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(units)
+      .where(
+        and(
+          eq(units.organizationId, organizationId),
+          eq(units.roomTypeId, roomTypeId),
+          eq(units.isActive, true),
+          not(eq(units.status, 'out_of_order')),
+        ),
+      );
+    const totalUnits = totalResult[0]?.count ?? 0;
+
+    // 2. All overlapping reservations for the full range (1 query)
+    const overlapping = await db
+      .select({
+        checkIn: reservations.checkInDate,
+        checkOut: reservations.checkOutDate,
+      })
+      .from(reservations)
+      .where(
+        and(
+          eq(reservations.organizationId, organizationId),
+          eq(reservations.roomTypeId, roomTypeId),
+          inArray(reservations.status, ['confirmed', 'checked_in']),
+          lt(reservations.checkInDate, dateTo),
+          gt(reservations.checkOutDate, dateFrom),
+        ),
+      );
+
+    // 3. Compute per-night concurrency in memory
+    const result = new Map<string, number>();
+    const start = new Date(dateFrom + 'T00:00:00Z');
+    const end = new Date(dateTo + 'T00:00:00Z');
+
+    for (let d = new Date(start); d < end; d.setUTCDate(d.getUTCDate() + 1)) {
+      const nightStr = d.toISOString().split('T')[0]!;
+      let concurrency = 0;
+      for (const res of overlapping) {
+        if (res.checkIn <= nightStr && nightStr < res.checkOut) {
+          concurrency++;
+        }
+      }
+      result.set(nightStr, Math.max(0, totalUnits - concurrency));
+    }
+
+    return result;
+  },
+
   /** Find available units of a room type for a date range */
   async findAvailableUnits(
     organizationId: string,
