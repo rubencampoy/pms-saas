@@ -471,6 +471,15 @@ export function Sidebar({
 
             {/* Bottom section */}
             <div className="border-t border-slate-800">
+              {isSuperAdmin && (
+                <Link
+                  href="/admin"
+                  className="w-full flex items-center gap-3 px-6 py-3 text-xs text-amber-400 hover:bg-slate-800 hover:text-amber-300 transition-colors"
+                >
+                  <span className="material-icons text-[18px]">admin_panel_settings</span>
+                  <span>Plataforma</span>
+                </Link>
+              )}
               <button
                 onClick={handleLocaleSwitch}
                 disabled={isPending}
