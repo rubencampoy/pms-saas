@@ -7,6 +7,7 @@ import {
   suspendOrganizationAction,
   reactivateOrganizationAction,
 } from '@/server/actions/admin-organizations';
+import { revokeInvitationAction } from '@/server/actions/invitations';
 import { ORG_PLANS, type OrgPlan } from '@/lib/validators/admin';
 
 interface Organization {
@@ -52,6 +53,29 @@ export function OrganizationDetailClient({ organization, usage, pendingInvitatio
   const [error, setError] = useState<string | null>(null);
   const [showSuspend, setShowSuspend] = useState(false);
   const [suspendReason, setSuspendReason] = useState('');
+  const [copiedToken, setCopiedToken] = useState<string | null>(null);
+
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+
+  function copyInviteLink(token: string) {
+    const url = `${baseUrl}/accept-invite?token=${token}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedToken(token);
+      setTimeout(() => setCopiedToken(null), 1500);
+    });
+  }
+
+  function handleRevokeInvite(id: string, email: string) {
+    if (!confirm(`¿Revocar la invitación de ${email}? El link dejará de funcionar.`)) return;
+    startTransition(async () => {
+      const result = await revokeInvitationAction(id);
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
 
   function handleSaveLimits(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -209,13 +233,38 @@ export function OrganizationDetailClient({ organization, usage, pendingInvitatio
           <h2 className="text-base font-semibold text-slate-900 dark:text-white mb-3">
             Invitaciones pendientes
           </h2>
-          <ul className="space-y-2">
+          <ul className="space-y-3">
             {pendingInvitations.map((inv) => (
-              <li key={inv.id} className="text-xs text-slate-600 dark:text-slate-300 flex justify-between">
-                <span>
-                  <strong className="text-slate-900 dark:text-white">{inv.email}</strong> · {inv.role} · caduca{' '}
-                  {new Date(inv.expiresAt).toLocaleDateString()}
-                </span>
+              <li
+                key={inv.id}
+                className="text-xs text-slate-600 dark:text-slate-300 flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100 dark:border-slate-800 last:border-b-0 last:pb-0"
+              >
+                <div>
+                  <strong className="text-slate-900 dark:text-white">{inv.email}</strong>
+                  <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 capitalize">
+                    {inv.role}
+                  </span>
+                  <span className="ml-2 text-slate-400">
+                    caduca {new Date(inv.expiresAt).toLocaleDateString()}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => copyInviteLink(inv.token)}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    {copiedToken === inv.token ? '✓ Copiado' : 'Copiar link'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRevokeInvite(inv.id, inv.email)}
+                    disabled={isPending}
+                    className="text-xs text-red-600 hover:underline disabled:opacity-50"
+                  >
+                    Revocar
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
