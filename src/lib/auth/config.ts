@@ -148,7 +148,6 @@ export const authConfig: NextAuthConfig = {
       const isLoggedIn = !!auth?.user;
       const isAuthPage =
         nextUrl.pathname.startsWith('/login') ||
-        nextUrl.pathname.startsWith('/register') ||
         nextUrl.pathname.startsWith('/forgot-password') ||
         nextUrl.pathname.startsWith('/setup-2fa') ||
         nextUrl.pathname.startsWith('/accept-invite');

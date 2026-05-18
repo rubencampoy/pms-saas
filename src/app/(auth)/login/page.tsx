@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { LoginForm } from '@/components/auth/login-form';
 import { HotelOSLogo } from '@/components/shared/hotel-os-logo';
 
@@ -70,20 +69,12 @@ export default function LoginPage() {
 
           <LoginForm />
 
-          <div className="text-center text-xs text-slate-400 space-y-2">
-            <p>
-              ¿Problemas para acceder?{' '}
-              <a href="/forgot-password" className="text-primary hover:underline">
-                Recuperar contraseña
-              </a>
-            </p>
-            <p>
-              ¿Aún no tienes cuenta?{' '}
-              <Link href="/register" className="text-primary hover:underline">
-                Crear una nueva organización
-              </Link>
-            </p>
-          </div>
+          <p className="text-center text-xs text-slate-400">
+            ¿Problemas para acceder?{' '}
+            <a href="/forgot-password" className="text-primary hover:underline">
+              Recuperar contraseña
+            </a>
+          </p>
         </div>
       </div>
     </div>

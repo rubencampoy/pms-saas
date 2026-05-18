@@ -34,6 +34,7 @@ export default async function DashboardLayout({
         activePropertyId={activePropertyId}
         memberships={session.user.memberships ?? []}
         activeOrganizationId={session.user.organizationId}
+        isSuperAdmin={session.user.isSuperAdmin}
       />
 
       {/* Main content — pt-14 on mobile for the fixed header bar */}

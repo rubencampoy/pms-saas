@@ -5,15 +5,9 @@ import bcrypt from 'bcryptjs';
 import { and, eq, isNull } from 'drizzle-orm';
 import { signIn, signOut } from '@/lib/auth';
 import { db } from '@/server/db';
-import {
-  users,
-  userRecoveryCodes,
-  organizations,
-  memberships,
-} from '@/server/db/schema';
+import { users, userRecoveryCodes } from '@/server/db/schema';
 import {
   loginSchema,
-  registerSchema,
   setupTotpSchema,
   verifyTotpSchema,
 } from '@/lib/validators/auth';
@@ -32,8 +26,6 @@ import {
 } from '@/lib/auth/totp';
 import { Secret } from 'otpauth';
 import { isTrustedDevice, issueTrustedDevice } from '@/lib/auth/trusted-device';
-import { slugify } from '@/lib/utils/slug';
-import { UserRole } from '@/lib/constants/roles';
 import type { ActionResult } from '@/types/actions';
 
 const GENERIC_AUTH_ERROR = 'Email o contraseña incorrectos';
@@ -262,103 +254,4 @@ export async function verifyTotpAction(input: {
 
 export async function logoutAction(): Promise<void> {
   await signOut({ redirect: false });
-}
-
-async function findFreeSlug(base: string): Promise<string> {
-  const root = slugify(base) || 'org';
-  for (let i = 0; i < 100; i++) {
-    const candidate = i === 0 ? root : `${root}-${i + 1}`;
-    const existing = await db.query.organizations.findFirst({
-      where: eq(organizations.slug, candidate),
-      columns: { id: true },
-    });
-    if (!existing) return candidate;
-  }
-  return `${root}-${Date.now()}`;
-}
-
-/**
- * Self-signup: create a new Organization + Owner user + membership in one tx.
- * Returns a 'setup' pending token so the client can redirect to /setup-2fa
- * (2FA is mandatory — no auto-signIn).
- */
-export async function registerOrganizationAction(input: {
-  ownerName: string;
-  email: string;
-  password: string;
-  organizationName: string;
-}): Promise<ActionResult<{ pendingToken: string }>> {
-  const validated = registerSchema.safeParse(input);
-  if (!validated.success) {
-    return {
-      success: false,
-      error: 'Revisa los campos del formulario',
-      fieldErrors: validated.error.flatten().fieldErrors as Record<string, string[]>,
-    };
-  }
-
-  const { ownerName, email, password, organizationName } = validated.data;
-  const normalizedEmail = email.toLowerCase().trim();
-
-  const existingUser = await db.query.users.findFirst({
-    where: eq(users.email, normalizedEmail),
-    columns: { id: true },
-  });
-  if (existingUser) {
-    return {
-      success: false,
-      error: 'Ya existe una cuenta con este email. Inicia sesión o usa otro email.',
-      fieldErrors: { email: ['Email ya registrado'] },
-    };
-  }
-
-  const slug = await findFreeSlug(organizationName);
-  const passwordHash = await bcrypt.hash(password, 10);
-
-  let newUserId: string;
-  try {
-    newUserId = await db.transaction(async (tx) => {
-      const [org] = await tx
-        .insert(organizations)
-        .values({
-          name: organizationName,
-          slug,
-          plan: 'free',
-        })
-        .returning({ id: organizations.id });
-
-      const [user] = await tx
-        .insert(users)
-        .values({
-          email: normalizedEmail,
-          name: ownerName,
-          passwordHash,
-          lastActiveOrganizationId: org!.id,
-        })
-        .returning({ id: users.id });
-
-      await tx.insert(memberships).values({
-        userId: user!.id,
-        organizationId: org!.id,
-        role: UserRole.OWNER,
-        acceptedAt: new Date(),
-        isActive: true,
-      });
-
-      return user!.id;
-    });
-  } catch (error) {
-    console.error('registerOrganizationAction transaction failed:', error);
-    return {
-      success: false,
-      error: 'No se pudo crear la cuenta. Inténtalo de nuevo.',
-    };
-  }
-
-  const secret = generateTotpSecret();
-  const pendingToken = issuePendingToken(newUserId, 'setup', {
-    setupSecret: secret.base32,
-  });
-
-  return { success: true, data: { pendingToken } };
 }
