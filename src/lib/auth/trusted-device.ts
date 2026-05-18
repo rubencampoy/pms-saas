@@ -43,17 +43,13 @@ async function getClientIp(): Promise<string | null> {
  * Issue a trusted-device cookie and persist its hash. Call this only after
  * the user has successfully completed 2FA (verification or initial setup).
  */
-export async function issueTrustedDevice(
-  userId: string,
-  organizationId: string,
-): Promise<void> {
+export async function issueTrustedDevice(userId: string): Promise<void> {
   const token = generateToken();
   const tokenHash = hashToken(token);
   const expiresAt = new Date(Date.now() + COOKIE_MAX_AGE_SECONDS * 1000);
 
   await db.insert(userTrustedDevices).values({
     userId,
-    organizationId,
     tokenHash,
     deviceLabel: await buildDeviceLabel(),
     ipAddress: await getClientIp(),

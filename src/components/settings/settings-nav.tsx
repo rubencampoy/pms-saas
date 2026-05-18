@@ -10,6 +10,7 @@ const SETTINGS_NAV = [
   { label: 'Properties', href: '/settings/properties', icon: 'apartment', tKey: 'properties' },
   { label: 'Booking Engine', href: '/settings/booking-engine', icon: 'language', tKey: 'bookingEngine' },
   { label: 'Channels', href: '/settings/channels', icon: 'sync', tKey: 'channels' },
+  { label: 'Team', href: '/settings/team', icon: 'group', tKey: 'team' },
 ] as const;
 
 export function SettingsNav() {

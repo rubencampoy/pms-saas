@@ -5,29 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1773048736606,
-      "tag": "0000_adorable_thunderball",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1773066184375,
-      "tag": "0004_brave_barracuda",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1773150003447,
-      "tag": "0005_daffy_wild_pack",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1774694307668,
-      "tag": "0006_ordinary_demogoblin",
+      "when": 1779119119436,
+      "tag": "0000_narrow_venus",
       "breakpoints": true
     }
   ]

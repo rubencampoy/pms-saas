@@ -14,6 +14,7 @@ import {
   folioLineItems,
   housekeepingTasks,
   users,
+  memberships,
 } from '../schema';
 
 const connectionString = process.env.DATABASE_URL;
@@ -51,9 +52,12 @@ async function addWeekReservations() {
   const allGuests = await db.select().from(guests).where(eq(guests.organizationId, orgId));
   const g = (lastName: string) => allGuests.find((g) => g.lastName === lastName)!;
 
-  // Get admin user for folio line items
-  const [adminUser] = await db.select().from(users)
-    .where(and(eq(users.organizationId, orgId), eq(users.role, 'admin')))
+  // Get owner user (for folio line items createdBy)
+  const [adminUser] = await db
+    .select({ id: users.id })
+    .from(users)
+    .innerJoin(memberships, eq(memberships.userId, users.id))
+    .where(and(eq(memberships.organizationId, orgId), eq(memberships.role, 'owner')))
     .limit(1);
 
   // Add more guests for variety

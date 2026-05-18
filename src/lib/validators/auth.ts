@@ -36,3 +36,21 @@ export const verifyTotpSchema = z
     path: ['code'],
   });
 export type VerifyTotpInput = z.infer<typeof verifyTotpSchema>;
+
+export const registerSchema = z.object({
+  ownerName: z.string().min(2, 'Tu nombre debe tener al menos 2 caracteres').max(255),
+  email: z.string().email('Introduce un email válido').max(255),
+  password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres').max(128),
+  organizationName: z
+    .string()
+    .min(2, 'El nombre del establecimiento debe tener al menos 2 caracteres')
+    .max(255),
+});
+export type RegisterInput = z.infer<typeof registerSchema>;
+
+export const acceptInviteSchema = z.object({
+  token: z.string().min(1),
+  name: z.string().min(2).max(255).optional(),
+  password: z.string().min(8).max(128).optional(),
+});
+export type AcceptInviteInput = z.infer<typeof acceptInviteSchema>;

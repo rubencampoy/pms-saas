@@ -32,6 +32,8 @@ export default async function DashboardLayout({
         userRole={session.user.role}
         properties={propertiesList.map((p) => ({ id: p.id, name: p.name, code: p.code }))}
         activePropertyId={activePropertyId}
+        memberships={session.user.memberships ?? []}
+        activeOrganizationId={session.user.organizationId}
       />
 
       {/* Main content — pt-14 on mobile for the fixed header bar */}

@@ -3,6 +3,9 @@
 
 export * from './organizations';
 export * from './users';
+export * from './memberships';
+export * from './invitations';
+export * from './super-admin-access-log';
 export * from './user-recovery-codes';
 export * from './user-trusted-devices';
 export * from './properties';

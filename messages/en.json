@@ -112,7 +112,8 @@
     "roomTypes": "Room Types",
     "rates": "Rates",
     "bookingEngine": "Booking Engine",
-    "channels": "Channels"
+    "channels": "Channels",
+    "team": "Team"
   },
   "bookingEngine": {
     "title": "Booking Engine",

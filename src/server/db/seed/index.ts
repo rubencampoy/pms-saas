@@ -7,6 +7,7 @@ import { sql } from 'drizzle-orm';
 import {
   organizations,
   users,
+  memberships,
   properties,
   roomTypes,
   units,
@@ -49,6 +50,7 @@ async function seed() {
   await db.delete(roomTypes);
   await db.delete(ratePlans);
   await db.delete(guests);
+  await db.delete(memberships);
   await db.delete(users);
   await db.delete(properties);
   await db.delete(organizations);
@@ -75,32 +77,49 @@ async function seed() {
   const orgId = org!.id;
   console.log(`   ✓ Organization: ${org!.name} (${orgId})`);
 
-  // ── 2. Users ──
+  // ── 2. Users + Memberships ──
   console.log('👤 Creating users...');
   const adminHash = await bcrypt.hash('admin123', 10);
   const frontDeskHash = await bcrypt.hash('recepcion123', 10);
 
-  const [adminUser] = await db
+  const [adminUser, frontDeskUser] = await db
     .insert(users)
     .values([
       {
-        organizationId: orgId,
         email: 'admin@koalahostel.com',
         name: 'Rubén Campoy',
-        role: 'admin',
         passwordHash: adminHash,
+        isSuperAdmin: true,
+        lastActiveOrganizationId: orgId,
       },
       {
-        organizationId: orgId,
         email: 'recepcion@koalahostel.com',
         name: 'María García',
-        role: 'front_desk',
         passwordHash: frontDeskHash,
+        lastActiveOrganizationId: orgId,
       },
     ])
     .returning();
 
-  console.log('   ✓ admin@koalahostel.com (Admin)');
+  const now = new Date();
+  await db.insert(memberships).values([
+    {
+      userId: adminUser!.id,
+      organizationId: orgId,
+      role: 'owner',
+      acceptedAt: now,
+      isActive: true,
+    },
+    {
+      userId: frontDeskUser!.id,
+      organizationId: orgId,
+      role: 'front_desk',
+      acceptedAt: now,
+      isActive: true,
+    },
+  ]);
+
+  console.log('   ✓ admin@koalahostel.com (Owner, Super Admin)');
   console.log('   ✓ recepcion@koalahostel.com (Front Desk)');
 
   // ── 3. Properties ──

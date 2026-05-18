@@ -112,7 +112,8 @@
     "roomTypes": "Tipos de Habitación",
     "rates": "Tarifas",
     "bookingEngine": "Motor de Reservas",
-    "channels": "Canales"
+    "channels": "Canales",
+    "team": "Equipo"
   },
   "bookingEngine": {
     "title": "Motor de Reservas",

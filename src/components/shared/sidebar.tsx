@@ -9,6 +9,7 @@ import { setLocale } from '@/server/actions/locale';
 import { logoutAction } from '@/server/actions/auth';
 import { HotelOSLogo } from '@/components/shared/hotel-os-logo';
 import { switchProperty } from '@/server/actions/property-switch';
+import { OrgSwitcher, type OrgMembership } from '@/components/shared/org-switcher';
 import type { Locale } from '@/i18n/request';
 
 interface Property {
@@ -22,6 +23,8 @@ interface SidebarProps {
   userRole: string;
   properties: Property[];
   activePropertyId: string;
+  memberships: OrgMembership[];
+  activeOrganizationId: string;
 }
 
 const NAV_ITEMS = [
@@ -39,7 +42,14 @@ const NAV_ICON_CLASS = 'material-icons-outlined';
 
 const STORAGE_KEY = 'hotelos-sidebar-collapsed';
 
-export function Sidebar({ userName, userRole, properties, activePropertyId }: SidebarProps) {
+export function Sidebar({
+  userName,
+  userRole,
+  properties,
+  activePropertyId,
+  memberships,
+  activeOrganizationId,
+}: SidebarProps) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -201,6 +211,9 @@ export function Sidebar({ userName, userRole, properties, activePropertyId }: Si
             <span className="material-icons">close</span>
           </button>
         </div>
+
+        {/* Org switcher (above property switcher) */}
+        <OrgSwitcher memberships={memberships} activeOrganizationId={activeOrganizationId} />
 
         {/* Property switcher */}
         {propertySwitcher}

@@ -1,16 +1,15 @@
 import { pgTable, uuid, varchar, text, timestamp, index } from 'drizzle-orm/pg-core';
-import { organizations } from './organizations';
 import { users } from './users';
 
 /**
  * Trusted devices that may skip the 2FA step for 30 days.
  * Cookie value is hashed (sha256) — the plaintext lives only in the user's browser.
+ * Belongs to the user, not to any single organization.
  */
 export const userTrustedDevices = pgTable(
   'user_trusted_devices',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    organizationId: uuid('organization_id').notNull().references(() => organizations.id),
     userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
     tokenHash: text('token_hash').notNull().unique(),
     deviceLabel: varchar('device_label', { length: 255 }),
