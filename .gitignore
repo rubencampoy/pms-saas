@@ -36,6 +36,7 @@ drizzle/meta
 # IDE
 .vscode/
 .idea/
+.claude/
 
 # typescript
 *.tsbuildinfo

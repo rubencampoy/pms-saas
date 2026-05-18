@@ -3,6 +3,8 @@
 
 export * from './organizations';
 export * from './users';
+export * from './user-recovery-codes';
+export * from './user-trusted-devices';
 export * from './properties';
 export * from './room-types';
 export * from './units';

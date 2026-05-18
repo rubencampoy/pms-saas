@@ -1,41 +1,38 @@
 import type { NextAuthConfig } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
-import { z } from 'zod';
-import bcrypt from 'bcryptjs';
 import { eq, and } from 'drizzle-orm';
 import { db } from '@/server/db';
 import { users } from '@/server/db/schema';
+import { verifyPendingToken } from './pending-token';
 
-const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(1),
-});
-
+/**
+ * The Credentials provider here is a thin "session minter": it accepts a
+ * short-lived, server-signed pending token whose `purpose` is 'trusted',
+ * meaning every authentication factor (password + TOTP / recovery code /
+ * trusted device) has already been verified in a server action.
+ *
+ * Real credential checks live in `src/server/actions/auth.ts`, never here.
+ */
 export const authConfig: NextAuthConfig = {
   providers: [
     Credentials({
       name: 'credentials',
       credentials: {
-        email: { label: 'Email', type: 'email' },
-        password: { label: 'Password', type: 'password' },
+        pendingToken: { label: 'Pending token', type: 'text' },
       },
       async authorize(credentials) {
-        const parsed = loginSchema.safeParse(credentials);
-        if (!parsed.success) return null;
+        const token = typeof credentials?.pendingToken === 'string'
+          ? credentials.pendingToken
+          : null;
+        if (!token) return null;
 
-        const { email, password } = parsed.data;
+        const payload = verifyPendingToken(token);
+        if (!payload || payload.purpose !== 'trusted') return null;
 
         const user = await db.query.users.findFirst({
-          where: and(
-            eq(users.email, email),
-            eq(users.isActive, true),
-          ),
+          where: and(eq(users.id, payload.userId), eq(users.isActive, true)),
         });
-
-        if (!user || !user.passwordHash) return null;
-
-        const passwordMatch = await bcrypt.compare(password, user.passwordHash);
-        if (!passwordMatch) return null;
+        if (!user) return null;
 
         return {
           id: user.id,
@@ -69,7 +66,8 @@ export const authConfig: NextAuthConfig = {
       const isLoggedIn = !!auth?.user;
       const isAuthPage = nextUrl.pathname.startsWith('/login')
         || nextUrl.pathname.startsWith('/register')
-        || nextUrl.pathname.startsWith('/forgot-password');
+        || nextUrl.pathname.startsWith('/forgot-password')
+        || nextUrl.pathname.startsWith('/setup-2fa');
 
       if (isAuthPage) {
         if (isLoggedIn) return Response.redirect(new URL('/', nextUrl));
