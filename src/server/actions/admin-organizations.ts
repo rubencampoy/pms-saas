@@ -4,6 +4,7 @@ import { randomBytes } from 'crypto';
 import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/lib/auth';
+import { getAppBaseUrl } from '@/lib/utils/app-url';
 import { db } from '@/server/db';
 import {
   organizations,
@@ -111,8 +112,7 @@ export async function createOrganizationAsAdminAction(
 
   revalidatePath('/admin/organizations');
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? '';
-  const acceptUrl = `${baseUrl}/accept-invite?token=${token}`;
+  const acceptUrl = `${await getAppBaseUrl()}/accept-invite?token=${token}`;
 
   return { success: true, data: { organizationId, acceptUrl, token } };
 }

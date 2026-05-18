@@ -17,6 +17,7 @@ import {
 } from '@/lib/validators/invitations';
 import { issuePendingToken } from '@/lib/auth/pending-token';
 import { generateTotpSecret } from '@/lib/auth/totp';
+import { getAppBaseUrl } from '@/lib/utils/app-url';
 import type { ActionResult } from '@/types/actions';
 
 const INVITE_EXPIRY_DAYS = 7;
@@ -88,8 +89,7 @@ export async function createInvitationAction(
 
     revalidatePath('/settings/team');
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? '';
-    const acceptUrl = `${baseUrl}/accept-invite?token=${token}`;
+    const acceptUrl = `${await getAppBaseUrl()}/accept-invite?token=${token}`;
 
     return { success: true, data: { id: created!.id, token, acceptUrl } };
   } catch (error) {
