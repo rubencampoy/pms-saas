@@ -2,6 +2,7 @@
 // Each entity gets its own file, re-exported here
 
 export * from './organizations';
+export * from './organization-billing';
 export * from './users';
 export * from './memberships';
 export * from './invitations';

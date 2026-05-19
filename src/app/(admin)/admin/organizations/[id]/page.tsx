@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { organizationRepo } from '@/server/repositories/organization.repo';
+import { organizationBillingRepo } from '@/server/repositories/organization-billing.repo';
 import { propertyRepo } from '@/server/repositories/property.repo';
 import { invitationRepo } from '@/server/repositories/invitation.repo';
 import { OrganizationDetailClient } from '@/components/admin/organization-detail-client';
@@ -15,10 +16,11 @@ export default async function AdminOrganizationDetailPage({ params }: Props) {
   const org = await organizationRepo.findById(id);
   if (!org) notFound();
 
-  const [usage, propertiesList, pendingInvitations] = await Promise.all([
+  const [usage, propertiesList, pendingInvitations, billing] = await Promise.all([
     organizationRepo.getUsage(id),
     propertyRepo.findWithStatsByOrg(id),
     invitationRepo.findPendingByOrg(id),
+    organizationBillingRepo.findByOrg(id),
   ]);
 
   return (
@@ -66,6 +68,18 @@ export default async function AdminOrganizationDetailPage({ params }: Props) {
           token: inv.token,
           expiresAt: inv.expiresAt.toISOString(),
         }))}
+        billing={{
+          legalName: billing?.legalName ?? '',
+          taxId: billing?.taxId ?? '',
+          addressLine1: billing?.addressLine1 ?? '',
+          addressLine2: billing?.addressLine2 ?? '',
+          postalCode: billing?.postalCode ?? '',
+          city: billing?.city ?? '',
+          state: billing?.state ?? '',
+          country: billing?.country ?? 'ES',
+          billingEmail: billing?.billingEmail ?? '',
+          stripeCustomerId: billing?.stripeCustomerId ?? null,
+        }}
       />
     </div>
   );

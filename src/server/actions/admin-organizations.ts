@@ -10,6 +10,7 @@ import {
   organizations,
   invitations,
   users,
+  memberships,
   properties,
   superAdminAccessLog,
 } from '@/server/db/schema';
@@ -18,16 +19,23 @@ import { UserRole } from '@/lib/constants/roles';
 import {
   createOrganizationAsAdminSchema,
   updateOrganizationLimitsSchema,
+  updateOrganizationProfileSchema,
   suspendOrganizationSchema,
   createPropertyAsAdminSchema,
   updatePropertyLimitsSchema,
+  updateBillingDataSchema,
+  inviteUserAsAdminSchema,
   type CreateOrganizationAsAdminInput,
   type UpdateOrganizationLimitsInput,
+  type UpdateOrganizationProfileInput,
   type SuspendOrganizationInput,
   type CreatePropertyAsAdminInput,
   type UpdatePropertyLimitsInput,
+  type UpdateBillingDataInput,
+  type InviteUserAsAdminInput,
 } from '@/lib/validators/admin';
 import { assertOrgCapacity } from '@/lib/auth/limits';
+import { organizationBillingRepo } from '@/server/repositories/organization-billing.repo';
 import type { ActionResult } from '@/types/actions';
 
 const INVITE_EXPIRY_DAYS = 14;
@@ -360,4 +368,171 @@ export async function updatePropertyLimitsAction(
 
   revalidatePath(`/admin/organizations/${property.organizationId}`);
   return { success: true, data: undefined };
+}
+
+// ─── Organization profile (rename) ───────────────────────────────────────
+
+export async function updateOrganizationProfileAction(
+  input: UpdateOrganizationProfileInput,
+): Promise<ActionResult> {
+  const guard = await requireSuperAdmin();
+  if (!guard.ok) return { success: false, error: guard.error };
+  const { session } = guard;
+
+  const validated = updateOrganizationProfileSchema.safeParse(input);
+  if (!validated.success) {
+    return {
+      success: false,
+      error: 'Revisa los campos',
+      fieldErrors: validated.error.flatten().fieldErrors as Record<string, string[]>,
+    };
+  }
+
+  const { organizationId, name } = validated.data;
+  const trimmed = name.trim();
+
+  try {
+    await db.transaction(async (tx) => {
+      await tx
+        .update(organizations)
+        .set({ name: trimmed, updatedAt: new Date() })
+        .where(eq(organizations.id, organizationId));
+
+      await tx.insert(superAdminAccessLog).values({
+        superAdminUserId: session.user.id,
+        organizationId,
+        action: 'update_org_profile',
+        reason: `name=${trimmed}`,
+      });
+    });
+  } catch (error) {
+    console.error('updateOrganizationProfileAction failed:', error);
+    return { success: false, error: 'No se pudo actualizar el nombre' };
+  }
+
+  revalidatePath('/admin/organizations');
+  revalidatePath(`/admin/organizations/${organizationId}`);
+  return { success: true, data: undefined };
+}
+
+// ─── Billing data ────────────────────────────────────────────────────────
+
+export async function updateBillingDataAction(
+  input: UpdateBillingDataInput,
+): Promise<ActionResult> {
+  const guard = await requireSuperAdmin();
+  if (!guard.ok) return { success: false, error: guard.error };
+  const { session } = guard;
+
+  const validated = updateBillingDataSchema.safeParse(input);
+  if (!validated.success) {
+    return {
+      success: false,
+      error: 'Revisa los campos',
+      fieldErrors: validated.error.flatten().fieldErrors as Record<string, string[]>,
+    };
+  }
+
+  const { organizationId, ...billing } = validated.data;
+
+  try {
+    await organizationBillingRepo.upsert(organizationId, billing);
+    await db.insert(superAdminAccessLog).values({
+      superAdminUserId: session.user.id,
+      organizationId,
+      action: 'update_billing',
+      reason: `legalName=${billing.legalName ?? ''} taxId=${billing.taxId ?? ''}`,
+    });
+  } catch (error) {
+    console.error('updateBillingDataAction failed:', error);
+    return { success: false, error: 'No se pudieron guardar los datos de facturación' };
+  }
+
+  revalidatePath(`/admin/organizations/${organizationId}`);
+  return { success: true, data: undefined };
+}
+
+// ─── Invitations (super admin sends from platform panel) ─────────────────
+
+const ADMIN_INVITE_EXPIRY_DAYS = 14;
+
+export async function inviteUserAsAdminAction(
+  input: InviteUserAsAdminInput,
+): Promise<ActionResult<{ id: string; token: string; acceptUrl: string }>> {
+  const guard = await requireSuperAdmin();
+  if (!guard.ok) return { success: false, error: guard.error };
+  const { session } = guard;
+
+  const validated = inviteUserAsAdminSchema.safeParse(input);
+  if (!validated.success) {
+    return {
+      success: false,
+      error: 'Revisa los campos',
+      fieldErrors: validated.error.flatten().fieldErrors as Record<string, string[]>,
+    };
+  }
+
+  const { organizationId, role } = validated.data;
+  const email = validated.data.email.toLowerCase().trim();
+
+  const capacity = await assertOrgCapacity(organizationId, 'user');
+  if (!capacity.ok) return { success: false, error: capacity.message };
+
+  const existingUser = await db.query.users.findFirst({
+    where: eq(users.email, email),
+    columns: { id: true },
+  });
+  if (existingUser) {
+    const existingMembership = await db.query.memberships.findFirst({
+      where: and(
+        eq(memberships.userId, existingUser.id),
+        eq(memberships.organizationId, organizationId),
+      ),
+      columns: { id: true },
+    });
+    if (existingMembership) {
+      return {
+        success: false,
+        error: 'Este email ya pertenece a la organización',
+        fieldErrors: { email: ['Ya es miembro'] },
+      };
+    }
+  }
+
+  const token = newToken();
+  const expiresAt = new Date(Date.now() + ADMIN_INVITE_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
+
+  let invitationId: string;
+  try {
+    invitationId = await db.transaction(async (tx) => {
+      const [inv] = await tx
+        .insert(invitations)
+        .values({
+          organizationId,
+          email,
+          role,
+          invitedByUserId: session.user.id,
+          token,
+          expiresAt,
+        })
+        .returning({ id: invitations.id });
+
+      await tx.insert(superAdminAccessLog).values({
+        superAdminUserId: session.user.id,
+        organizationId,
+        action: 'invite_user',
+        reason: `email=${email} role=${role}`,
+      });
+
+      return inv!.id;
+    });
+  } catch (error) {
+    console.error('inviteUserAsAdminAction failed:', error);
+    return { success: false, error: 'No se pudo crear la invitación' };
+  }
+
+  revalidatePath(`/admin/organizations/${organizationId}`);
+
+  const acceptUrl = `${await getAppBaseUrl()}/accept-invite?token=${token}`;
+  return { success: true, data: { id: invitationId, token, acceptUrl } };
 }
