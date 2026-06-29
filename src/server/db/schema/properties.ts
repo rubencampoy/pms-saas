@@ -15,6 +15,11 @@ export const properties = pgTable('properties', {
   isActive: boolean('is_active').notNull().default(true),
   plan: varchar('plan', { length: 20 }).notNull().default('free'),
   maxUnits: integer('max_units').notNull().default(10),
+  // Public-IP allowlist for internal PMS access. Opt-in per property:
+  // when enabled, staff may only reach the dashboard from one of `allowedIps`
+  // (exact IPv4/IPv6 or CIDR). See src/lib/security/ip-guard.ts.
+  ipRestrictionEnabled: boolean('ip_restriction_enabled').notNull().default(false),
+  allowedIps: jsonb('allowed_ips').$type<string[]>().notNull().default([]),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

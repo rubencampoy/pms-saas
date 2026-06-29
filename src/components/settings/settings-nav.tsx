@@ -11,6 +11,7 @@ const SETTINGS_NAV = [
   { label: 'Booking Engine', href: '/settings/booking-engine', icon: 'language', tKey: 'bookingEngine' },
   { label: 'Channels', href: '/settings/channels', icon: 'sync', tKey: 'channels' },
   { label: 'Team', href: '/settings/team', icon: 'group', tKey: 'team' },
+  { label: 'Security', href: '/settings/security', icon: 'security', tKey: 'security' },
   { label: 'Plan', href: '/settings/plan', icon: 'workspace_premium', tKey: 'plan' },
 ] as const;
 

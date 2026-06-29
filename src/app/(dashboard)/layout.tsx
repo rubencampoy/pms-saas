@@ -4,6 +4,7 @@ import { Sidebar } from '@/components/shared/sidebar';
 import { Toaster } from '@/components/ui/toast';
 import { propertyRepo } from '@/server/repositories/property.repo';
 import { getSelectedPropertyId } from '@/server/actions/property-switch';
+import { evaluateIpAccess } from '@/lib/security/ip-guard';
 
 export default async function DashboardLayout({
   children,
@@ -14,6 +15,14 @@ export default async function DashboardLayout({
   if (!session) redirect('/login');
 
   const orgId = session.user.organizationId;
+
+  // Per-property public-IP allowlist. Super admins (platform staff) bypass it.
+  if (orgId && !session.user.isSuperAdmin) {
+    const ipAccess = await evaluateIpAccess(orgId);
+    if (ipAccess.restricted && !ipAccess.allowed) {
+      redirect('/access-denied');
+    }
+  }
 
   // Fetch all properties for the org + resolve active property
   const [propertiesList, selectedPropertyId] = await Promise.all([

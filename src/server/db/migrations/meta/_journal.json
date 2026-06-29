@@ -29,6 +29,13 @@
       "when": 1779181437759,
       "tag": "0003_mushy_stryfe",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1782488243339,
+      "tag": "0004_wise_bug",
+      "breakpoints": true
     }
   ]
 }

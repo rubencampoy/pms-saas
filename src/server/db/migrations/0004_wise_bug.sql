@@ -1,0 +1,2 @@
+ALTER TABLE "properties" ADD COLUMN "ip_restriction_enabled" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "properties" ADD COLUMN "allowed_ips" jsonb DEFAULT '[]'::jsonb NOT NULL;

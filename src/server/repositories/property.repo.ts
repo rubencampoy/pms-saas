@@ -34,6 +34,39 @@ export const propertyRepo = {
       .orderBy(properties.name);
   },
 
+  /** Per-property public-IP allowlist settings for the IP access guard. */
+  async findIpSettingsByOrg(organizationId: string) {
+    return db
+      .select({
+        id: properties.id,
+        name: properties.name,
+        code: properties.code,
+        ipRestrictionEnabled: properties.ipRestrictionEnabled,
+        allowedIps: properties.allowedIps,
+      })
+      .from(properties)
+      .where(eq(properties.organizationId, organizationId))
+      .orderBy(properties.name);
+  },
+
+  async updateIpRestriction(
+    organizationId: string,
+    id: string,
+    data: { ipRestrictionEnabled: boolean; allowedIps: string[] },
+  ) {
+    const [property] = await db
+      .update(properties)
+      .set({ ...data, updatedAt: new Date() })
+      .where(
+        and(
+          eq(properties.organizationId, organizationId),
+          eq(properties.id, id),
+        ),
+      )
+      .returning();
+    return property;
+  },
+
   async findById(organizationId: string, id: string) {
     return db.query.properties.findFirst({
       where: and(
