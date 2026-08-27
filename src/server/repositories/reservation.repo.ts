@@ -1,6 +1,6 @@
 import { db } from '@/server/db';
-import { reservations, units } from '@/server/db/schema';
-import { and, eq, gt, gte, lt, or, ilike, inArray, asc, desc, sql, not } from 'drizzle-orm';
+import { reservations, units, guests } from '@/server/db/schema';
+import { and, eq, getTableColumns, gt, gte, lt, lte, or, ilike, inArray, asc, desc, sql, not } from 'drizzle-orm';
 
 export const reservationRepo = {
   async findAll(
@@ -428,5 +428,98 @@ export const reservationRepo = {
       .from(reservations)
       .where(and(...conditions));
     return result?.count ?? 0;
+  },
+
+  /**
+   * Keyset page of reservations ordered by `(updated_at, id)` ascending, for
+   * the public integration API. Ascending order plus `updatedSince` is what
+   * makes incremental polling cheap: the client resumes from its last cursor
+   * and only ever reads rows that changed.
+   *
+   * Backed by `idx_reservations_org_updated_at_id`.
+   */
+  async findPageByUpdatedAt(
+    organizationId: string,
+    options: {
+      propertyId?: string;
+      status?: string[];
+      updatedSince?: Date;
+      checkInFrom?: string;
+      checkInTo?: string;
+      cursor?: { updatedAt: string; id: string } | null;
+      limit: number;
+    },
+  ) {
+    const conditions = [eq(reservations.organizationId, organizationId)];
+
+    if (options.propertyId) {
+      conditions.push(eq(reservations.propertyId, options.propertyId));
+    }
+    if (options.status && options.status.length > 0) {
+      conditions.push(inArray(reservations.status, options.status));
+    }
+    if (options.updatedSince) {
+      conditions.push(gte(reservations.updatedAt, options.updatedSince));
+    }
+    if (options.checkInFrom) {
+      conditions.push(gte(reservations.checkInDate, options.checkInFrom));
+    }
+    if (options.checkInTo) {
+      conditions.push(lte(reservations.checkInDate, options.checkInTo));
+    }
+    if (options.cursor) {
+      // Row-value comparison, so the tie-break on `id` is handled by Postgres
+      // rather than by an OR-chain the planner would struggle with. Both sides
+      // are cast explicitly: an untyped parameter next to a `uuid` column is
+      // ambiguous to the planner.
+      conditions.push(
+        sql`(${reservations.updatedAt}, ${reservations.id}) > (${options.cursor.updatedAt}::timestamptz, ${options.cursor.id}::uuid)`,
+      );
+    }
+
+    return db
+      .select({
+        ...getTableColumns(reservations),
+        // `updated_at` rendered at full microsecond precision. A JS `Date` only
+        // holds milliseconds, so paginating on the mapped value would round
+        // down and re-serve rows the client already read.
+        cursorUpdatedAt: sql<string>`to_char(${reservations.updatedAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
+      })
+      .from(reservations)
+      .where(and(...conditions))
+      .orderBy(asc(reservations.updatedAt), asc(reservations.id))
+      .limit(options.limit);
+  },
+
+  /**
+   * Find a reservation by confirmation code *and* the guest's surname.
+   *
+   * This is the guest-identification lookup for the public API. Both factors
+   * must match: a confirmation code alone is guessable enough (sequential
+   * per property) that it cannot be the only thing standing between a caller
+   * and someone else's booking. The surname is compared case-insensitively;
+   * it is not accent-folded, since the `unaccent` extension is not installed
+   * on this database.
+   */
+  async findByConfirmationCodeAndLastName(
+    organizationId: string,
+    confirmationCode: string,
+    lastName: string,
+  ) {
+    const [row] = await db
+      .select({ reservation: reservations, guest: guests })
+      .from(reservations)
+      .innerJoin(guests, eq(guests.id, reservations.guestId))
+      .where(
+        and(
+          eq(reservations.organizationId, organizationId),
+          eq(guests.organizationId, organizationId),
+          eq(reservations.confirmationCode, confirmationCode),
+          sql`lower(${guests.lastName}) = lower(${lastName})`,
+        ),
+      )
+      .limit(1);
+
+    return row ?? null;
   },
 };

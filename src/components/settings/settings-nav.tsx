@@ -10,6 +10,7 @@ const SETTINGS_NAV = [
   { label: 'Properties', href: '/settings/properties', icon: 'apartment', tKey: 'properties' },
   { label: 'Booking Engine', href: '/settings/booking-engine', icon: 'language', tKey: 'bookingEngine' },
   { label: 'Channels', href: '/settings/channels', icon: 'sync', tKey: 'channels' },
+  { label: 'API', href: '/settings/api', icon: 'api', tKey: 'api' },
   { label: 'Team', href: '/settings/team', icon: 'group', tKey: 'team' },
   { label: 'Security', href: '/settings/security', icon: 'security', tKey: 'security' },
   { label: 'Plan', href: '/settings/plan', icon: 'workspace_premium', tKey: 'plan' },

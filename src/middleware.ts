@@ -13,7 +13,8 @@ export const config = {
      * - api/auth (Auth.js routes — must be accessible unauthenticated)
      * - api/upload (file upload routes — auth handled in route handler)
      * - api/public, book (public booking engine routes)
+     * - api/v1 (integration API — authenticated by API key in the route handler)
      */
-    '/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|api/auth|api/public|api/upload|book).*)',
+    '/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|api/auth|api/public|api/upload|api/v1|book).*)',
   ],
 };

@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, text, date, integer, numeric, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, date, integer, numeric, timestamp, index } from 'drizzle-orm/pg-core';
 import { organizations } from './organizations';
 import { properties } from './properties';
 import { roomTypes } from './room-types';
@@ -28,4 +28,13 @@ export const reservations = pgTable('reservations', {
   cancellationReason: text('cancellation_reason'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-});
+},
+(table) => [
+  // Cursor for incremental sync in the public API (`GET /api/v1/reservations`),
+  // which walks (updated_at, id) ascending.
+  index('idx_reservations_org_updated_at_id').on(
+    table.organizationId,
+    table.updatedAt,
+    table.id,
+  ),
+]);
