@@ -10,10 +10,21 @@ export const createInvitationSchema = z.object({
 
 export type CreateInvitationInput = z.infer<typeof createInvitationSchema>;
 
-export const acceptInvitationSchema = z.object({
-  token: z.string().min(1).max(64),
-  name: z.string().min(2).max(255).optional(),
-  password: z.string().min(8).max(128).optional(),
-});
+export const acceptInvitationSchema = z
+  .object({
+    token: z.string().min(1).max(64),
+    name: z.string().min(2).max(255).optional(),
+    password: z.string().min(8).max(128).optional(),
+    passwordConfirm: z.string().max(128).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.password && data.password !== data.passwordConfirm) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['passwordConfirm'],
+        message: 'Las contraseñas no coinciden',
+      });
+    }
+  });
 
 export type AcceptInvitationInput = z.infer<typeof acceptInvitationSchema>;

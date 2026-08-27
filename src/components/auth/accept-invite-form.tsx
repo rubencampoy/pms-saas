@@ -21,11 +21,11 @@ export function AcceptInviteForm({ mode, token, email, expected, current }: Prop
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
 
-  function handleAccept(name?: string, password?: string) {
+  function handleAccept(name?: string, password?: string, passwordConfirm?: string) {
     setError(null);
     setFieldErrors({});
     startTransition(async () => {
-      const result = await acceptInvitationAction({ token, name, password });
+      const result = await acceptInvitationAction({ token, name, password, passwordConfirm });
       if (!result.success) {
         setError(result.error);
         if (result.fieldErrors) setFieldErrors(result.fieldErrors);
@@ -104,7 +104,14 @@ export function AcceptInviteForm({ mode, token, email, expected, current }: Prop
       onSubmit={(e) => {
         e.preventDefault();
         const fd = new FormData(e.currentTarget);
-        handleAccept((fd.get('name') as string).trim(), fd.get('password') as string);
+        const password = fd.get('password') as string;
+        const passwordConfirm = fd.get('passwordConfirm') as string;
+        if (password !== passwordConfirm) {
+          setError(null);
+          setFieldErrors({ passwordConfirm: ['Las contraseñas no coinciden'] });
+          return;
+        }
+        handleAccept((fd.get('name') as string).trim(), password, passwordConfirm);
       }}
       className="space-y-4"
     >
@@ -139,6 +146,17 @@ export function AcceptInviteForm({ mode, token, email, expected, current }: Prop
         placeholder="••••••••"
         errors={fieldErrors.password}
         help="Mínimo 8 caracteres."
+      />
+
+      <Field
+        id="invite-password-confirm"
+        name="passwordConfirm"
+        type="password"
+        label="Repite la contraseña"
+        icon="lock_reset"
+        autoComplete="new-password"
+        placeholder="••••••••"
+        errors={fieldErrors.passwordConfirm}
       />
 
       <button
@@ -183,6 +201,9 @@ function Field({
   errors?: string[];
   help?: string;
 }) {
+  const isPassword = type === 'password';
+  const [revealed, setRevealed] = useState(false);
+
   return (
     <div className="space-y-1.5">
       <label htmlFor={id} className="block text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -195,12 +216,28 @@ function Field({
         <input
           id={id}
           name={name}
-          type={type}
+          type={isPassword && revealed ? 'text' : type}
           autoComplete={autoComplete}
           required
           placeholder={placeholder}
-          className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none placeholder:text-slate-400"
+          className={`w-full pl-10 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none placeholder:text-slate-400 ${
+            isPassword ? 'pr-11' : 'pr-4'
+          }`}
         />
+        {isPassword && (
+          <button
+            type="button"
+            onClick={() => setRevealed((v) => !v)}
+            aria-label={revealed ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+            aria-pressed={revealed}
+            tabIndex={-1}
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+          >
+            <span className="material-icons text-xl">
+              {revealed ? 'visibility_off' : 'visibility'}
+            </span>
+          </button>
+        )}
       </div>
       {errors && errors.length > 0 && (
         <p className="text-xs text-red-600 dark:text-red-400">{errors[0]}</p>
