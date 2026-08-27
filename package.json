@@ -11,6 +11,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:seed": "npx tsx src/server/db/seed/index.ts",
+    "db:seed:demo": "npx tsx src/server/db/seed/demo-data.ts",
+    "db:seed:guardamar": "npx tsx src/server/db/seed/demo-data.ts --org=hotel-guardamar --code=HGU --name=\"Apartamentos Hotel Guardamar\"",
     "db:studio": "drizzle-kit studio",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
