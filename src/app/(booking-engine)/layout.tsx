@@ -16,7 +16,7 @@ function BookingEngineHeader() {
               </svg>
             </div>
             <span className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-              HotelOS
+              Chamelio
             </span>
           </div>
 
@@ -60,7 +60,7 @@ function BookingEngineFooter() {
           </a>
         </div>
         <p className="text-slate-400 text-xs">
-          &copy; {new Date().getFullYear()} HotelOS. {t('allRightsReserved')}
+          &copy; {new Date().getFullYear()} Chamelio. {t('allRightsReserved')}
         </p>
       </div>
     </footer>

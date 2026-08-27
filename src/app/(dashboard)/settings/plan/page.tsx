@@ -35,7 +35,7 @@ export default async function PlanSettingsPage() {
       <div>
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Plan y uso</h1>
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          Estado de tu cuenta y consumo por propiedad. Para ampliar contacta con HotelOS.
+          Estado de tu cuenta y consumo por propiedad. Para ampliar contacta con Chamelio PMS.
         </p>
       </div>
 
@@ -56,7 +56,7 @@ export default async function PlanSettingsPage() {
         </h2>
         {propertiesList.length === 0 ? (
           <div className="bg-white dark:bg-[#1a2632] rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-8 text-center text-sm text-slate-500">
-            Aún no tienes propiedades. Contacta con HotelOS para añadir tu primera propiedad.
+            Aún no tienes propiedades. Contacta con Chamelio PMS para añadir tu primera propiedad.
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

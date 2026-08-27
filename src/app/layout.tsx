@@ -11,9 +11,23 @@ const manrope = Manrope({
   display: 'swap',
 });
 
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://pms.chamelioguest.com';
+
 export const metadata: Metadata = {
-  title: 'HotelOS — Property Management System',
+  metadataBase: new URL(APP_URL),
+  title: {
+    default: 'Chamelio PMS — Property Management System',
+    template: '%s — Chamelio PMS',
+  },
   description: 'SaaS PMS multi-tenant para gestión hotelera',
+  applicationName: 'Chamelio PMS',
+  openGraph: {
+    title: 'Chamelio PMS',
+    description: 'SaaS PMS multi-tenant para gestión hotelera',
+    url: APP_URL,
+    siteName: 'Chamelio PMS',
+    type: 'website',
+  },
 };
 
 export default async function RootLayout({

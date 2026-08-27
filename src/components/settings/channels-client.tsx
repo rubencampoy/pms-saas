@@ -703,7 +703,7 @@ export function ChannelsClient({ propertyIntegrations }: Props) {
           </div>
         </div>
 
-        {/* HotelOS Webhook URL (read-only — for inbound reservations) */}
+        {/* Chamelio PMS Webhook URL (read-only — for inbound reservations) */}
         {current.integration && (
           <div className="mb-1">
             <div className="border-t border-slate-200 dark:border-slate-700 my-5" />
@@ -849,7 +849,7 @@ export function ChannelsClient({ propertyIntegrations }: Props) {
                   <thead>
                     <tr className="border-b border-slate-200 dark:border-slate-700">
                       <th className="text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 py-2 px-3 bg-slate-50 dark:bg-slate-800/50">
-                        HotelOS
+                        Chamelio PMS
                       </th>
                       <th className="text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 py-2 px-3 bg-slate-50 dark:bg-slate-800/50">
                         {t('externalRoomType')}
@@ -920,7 +920,7 @@ export function ChannelsClient({ propertyIntegrations }: Props) {
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-700">
                   <th className="text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 py-2 px-3 bg-slate-50 dark:bg-slate-800/50">
-                    HotelOS
+                    Chamelio PMS
                   </th>
                   <th className="text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 py-2 px-3 bg-slate-50 dark:bg-slate-800/50">
                     {t('externalRatePlan')}

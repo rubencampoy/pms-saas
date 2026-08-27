@@ -4,7 +4,7 @@ import { randomBytes } from 'crypto';
 import bcrypt from 'bcryptjs';
 import { encrypt, decrypt } from '@/lib/utils/encryption';
 
-const ISSUER = 'HotelOS';
+const ISSUER = 'Chamelio PMS';
 const PERIOD = 30;
 const DIGITS = 6;
 const ALGORITHM = 'SHA1'; // RFC 6238 default — most authenticator apps assume this

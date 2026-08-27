@@ -71,7 +71,7 @@ export function PropertiesClient({ properties, roomTypes, units }: PropertiesCli
             ¿Necesitas añadir otra propiedad?
           </p>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            Contacta con HotelOS.
+            Contacta con Chamelio PMS.
           </p>
         </div>
       </div>
@@ -83,7 +83,7 @@ export function PropertiesClient({ properties, roomTypes, units }: PropertiesCli
             apartment
           </span>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            Aún no tienes propiedades. Contacta con HotelOS para añadir la primera.
+            Aún no tienes propiedades. Contacta con Chamelio PMS para añadir la primera.
           </p>
         </div>
       ) : (
@@ -270,7 +270,7 @@ function PropertyFormDialog({ editData, onClose }: PropertyFormDialogProps) {
       };
 
       if (!isEdit) {
-        setError('La creación de propiedades está gestionada por HotelOS. Contacta para añadir una.');
+        setError('La creación de propiedades está gestionada por Chamelio PMS. Contacta para añadir una.');
         return;
       }
       const result = await updateProperty({ id: editData!.id, ...input });

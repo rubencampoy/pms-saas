@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { auth } from '@/lib/auth';
 import { propertyRepo } from '@/server/repositories/property.repo';
 
-const COOKIE_KEY = 'hotelos-property-id';
+const COOKIE_KEY = 'chamelio-property-id';
 
 /**
  * Switch the active property for the current user session.

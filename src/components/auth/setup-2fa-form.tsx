@@ -89,7 +89,7 @@ function EnrollView({
           </p>
           <p className="text-slate-700 dark:text-slate-300">
             <span className="font-medium">2.</span> Tu cuenta aparecerá como{' '}
-            <span className="font-mono text-xs text-slate-500">HotelOS ({accountLabel})</span>.
+            <span className="font-mono text-xs text-slate-500">Chamelio PMS ({accountLabel})</span>.
           </p>
           <p className="text-slate-700 dark:text-slate-300">
             <span className="font-medium">3.</span> Introduce abajo el código de 6 dígitos.
@@ -185,7 +185,7 @@ function RecoveryCodesView({ codes }: { codes: string[] }) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'hotelos-recovery-codes.txt';
+    a.download = 'chamelio-recovery-codes.txt';
     a.click();
     URL.revokeObjectURL(url);
   }

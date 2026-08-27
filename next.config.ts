@@ -4,7 +4,13 @@ import createNextIntlPlugin from "next-intl/plugin";
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  experimental: {
+    // Dominios desde los que se aceptan Server Actions. Necesario cuando la app
+    // se sirve tras un proxy/dominio propio distinto del host interno.
+    serverActions: {
+      allowedOrigins: ["pms.chamelioguest.com", "localhost:3000"],
+    },
+  },
 };
 
 export default withNextIntl(nextConfig);

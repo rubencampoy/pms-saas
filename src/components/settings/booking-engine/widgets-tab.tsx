@@ -103,6 +103,10 @@ interface WidgetsTabProps {
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
+const WIDGET_CDN_URL =
+  process.env.NEXT_PUBLIC_WIDGET_CDN_URL ?? 'https://cdn.chamelioguest.com';
+const BOOKING_URL = process.env.NEXT_PUBLIC_BOOKING_URL ?? 'https://book.chamelioguest.com';
+
 export function WidgetsTab({ data, onChange, propertyCode }: WidgetsTabProps) {
   const t = useTranslations('bookingEngine.widgets');
   const tPreview = useTranslations('bookingEngine.widgets.preview');
@@ -110,16 +114,16 @@ export function WidgetsTab({ data, onChange, propertyCode }: WidgetsTabProps) {
   const slug = propertyCode.toLowerCase().replace(/\s+/g, '-');
 
   const embedCode = useMemo(() => {
-    return `<!-- HotelOS Booking Engine Widget -->
-<div id="hotelosBE"
+    return `<!-- Chamelio Booking Engine Widget -->
+<div id="chamelioBE"
      data-property="${slug}"
      data-lang="${data.widgetLanguage}"
      data-type="${data.widgetType}"></div>
-<script src="https://cdn.hotelosbooking.com/widget.js"
+<script src="${WIDGET_CDN_URL}/widget.js"
         async></script>`;
   }, [slug, data.widgetLanguage, data.widgetType]);
 
-  const directUrl = `https://book.hotelosbooking.com/${slug}?lang=${data.widgetLanguage}`;
+  const directUrl = `${BOOKING_URL}/${slug}?lang=${data.widgetLanguage}`;
 
   const handleCopyCode = useCallback(() => {
     navigator.clipboard.writeText(embedCode).then(() => {
@@ -310,7 +314,7 @@ export function WidgetsTab({ data, onChange, propertyCode }: WidgetsTabProps) {
                       {tPreview('searchAvailability')}
                     </button>
                     <p className="text-center text-[10px] text-slate-400 mt-3">
-                      {tPreview('poweredBy')} <span className="font-semibold text-slate-500 dark:text-slate-400">HotelOS</span>
+                      {tPreview('poweredBy')} <span className="font-semibold text-slate-500 dark:text-slate-400">Chamelio</span>
                     </p>
                   </div>
                 </div>

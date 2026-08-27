@@ -1,11 +1,11 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { HotelOSLogo } from '@/components/shared/hotel-os-logo';
+import { ChamelioLogo } from '@/components/shared/chamelio-logo';
 import { getInvitationStatus } from '@/server/actions/invitations';
 import { AcceptInviteForm } from '@/components/auth/accept-invite-form';
 
 export const metadata: Metadata = {
-  title: 'Aceptar invitación — HotelOS',
+  title: 'Aceptar invitación',
 };
 
 interface AcceptInvitePageProps {
@@ -97,8 +97,8 @@ function Shell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen items-center justify-center bg-background-light dark:bg-background-dark p-8">
       <div className="w-full max-w-md space-y-8">
         <div className="flex items-center justify-center gap-3">
-          <HotelOSLogo className="h-10 w-10" />
-          <span className="text-xl font-bold text-slate-900 dark:text-white">HotelOS</span>
+          <ChamelioLogo className="h-10 w-10" />
+          <span className="text-xl font-bold text-slate-900 dark:text-white">Chamelio PMS</span>
         </div>
         {children}
       </div>

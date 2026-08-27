@@ -1,6 +1,6 @@
 # CLAUDE.md — Master Instructions for Claude Code
 
-> You are building a SaaS PMS (Property Management System) multi-tenant called **HotelOS**.
+> You are building a SaaS PMS (Property Management System) multi-tenant called **Chamelio PMS**.
 > Before writing ANY code, read the constitution files in `/docs/constitution/`.
 
 ---
@@ -217,7 +217,7 @@ npm run build            # Production build
 → get_design_context(screenId)
 
 # Then generate a new screen that matches
-→ generate_screen_from_text("Design a [page] for HotelOS using this context...")
+→ generate_screen_from_text("Design a [page] for Chamelio PMS using this context...")
 
 # Retrieve the HTML to translate to React
 → get_screen_code(screenId)

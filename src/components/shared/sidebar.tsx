@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { setLocale } from '@/server/actions/locale';
 import { logoutAction } from '@/server/actions/auth';
-import { HotelOSLogo } from '@/components/shared/hotel-os-logo';
+import { ChamelioLogo } from '@/components/shared/chamelio-logo';
 import { switchProperty } from '@/server/actions/property-switch';
 import { OrgSwitcher, type OrgMembership } from '@/components/shared/org-switcher';
 import type { Locale } from '@/i18n/request';
@@ -41,7 +41,7 @@ const NAV_ITEMS = [
 /** CSS class for nav icons — uses the Outlined variant loaded in layout.tsx */
 const NAV_ICON_CLASS = 'material-icons-outlined';
 
-const STORAGE_KEY = 'hotelos-sidebar-collapsed';
+const STORAGE_KEY = 'chamelio-sidebar-collapsed';
 
 export function Sidebar({
   userName,
@@ -202,8 +202,8 @@ export function Sidebar({
       <div className="border-b border-slate-800">
         <div className="flex items-center justify-between h-16 px-5">
           <div className="flex items-center gap-3">
-            <HotelOSLogo className="h-8 w-8" />
-            <span className="text-lg font-bold text-white">HotelOS</span>
+            <ChamelioLogo className="h-8 w-8" />
+            <span className="text-lg font-bold text-white">Chamelio PMS</span>
           </div>
           {/* Close button (mobile only) */}
           <button
@@ -311,9 +311,9 @@ export function Sidebar({
           <span className="material-icons">menu</span>
         </button>
         <div className="flex items-center gap-2">
-          <HotelOSLogo className="h-7 w-7" />
+          <ChamelioLogo className="h-7 w-7" />
           <span className="text-sm font-bold text-white truncate max-w-[200px]">
-            {activeProperty?.name ?? 'HotelOS'}
+            {activeProperty?.name ?? 'Chamelio PMS'}
           </span>
         </div>
         <div className="w-10" /> {/* Spacer for centering */}
@@ -351,7 +351,7 @@ export function Sidebar({
                 className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-slate-800 transition-colors"
                 title="Expand sidebar"
               >
-                <HotelOSLogo className="h-8 w-8" />
+                <ChamelioLogo className="h-8 w-8" />
               </button>
             </div>
 
@@ -424,8 +424,8 @@ export function Sidebar({
             <div className="border-b border-slate-800">
               <div className="flex items-center justify-between h-16 px-5">
                 <div className="flex items-center gap-3">
-                  <HotelOSLogo className="h-8 w-8" />
-                  <span className="text-lg font-bold text-white">HotelOS</span>
+                  <ChamelioLogo className="h-8 w-8" />
+                  <span className="text-lg font-bold text-white">Chamelio PMS</span>
                 </div>
                 <button
                   onClick={toggleCollapsed}

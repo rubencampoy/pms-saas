@@ -3,7 +3,7 @@ import { auth, signOut } from '@/lib/auth';
 import { evaluateIpAccess } from '@/lib/security/ip-guard';
 
 export const metadata = {
-  title: 'Acceso restringido · HotelOS',
+  title: 'Acceso restringido',
 };
 
 export default async function AccessDeniedPage() {

@@ -204,7 +204,7 @@ export function AirbnbOnboarding({
         {oauthUrl && !hostIsActive && (
           <div className="space-y-2">
             <p className="text-xs text-slate-600 dark:text-slate-400">
-              Click the link below to authorize HotelOS on your Airbnb account:
+              Click the link below to authorize Chamelio PMS on your Airbnb account:
             </p>
             <a
               href={oauthUrl}

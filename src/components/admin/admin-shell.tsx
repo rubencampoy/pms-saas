@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTransition } from 'react';
-import { HotelOSLogo } from '@/components/shared/hotel-os-logo';
+import { ChamelioLogo } from '@/components/shared/chamelio-logo';
 import { logoutAction } from '@/server/actions/auth';
 
 const NAV = [
@@ -36,8 +36,8 @@ export function AdminShell({
         <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-6">
             <Link href="/admin" className="flex items-center gap-2">
-              <HotelOSLogo className="h-7 w-7" />
-              <span className="text-sm font-bold text-white">HotelOS</span>
+              <ChamelioLogo className="h-7 w-7" />
+              <span className="text-sm font-bold text-white">Chamelio PMS</span>
               <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider ml-1">
                 Plataforma
               </span>

@@ -1,7 +1,7 @@
 # Airbnb Integration via Zodomus — Reference Document
 
 > Source: Documentation provided by Zodomus (info@zodomus.com) on 2025-03-27.
-> This document is a technical reference for implementing the Airbnb channel in HotelOS.
+> This document is a technical reference for implementing the Airbnb channel in Chamelio PMS.
 
 ---
 
@@ -19,7 +19,7 @@
 10. [API Rate Limits](#10-api-rate-limits)
 11. [API Reference (Complete List)](#11-api-reference-complete-list)
 12. [ID Format & Migration](#12-id-format--migration)
-13. [Implementation Notes for HotelOS](#13-implementation-notes-for-hotelos)
+13. [Implementation Notes for Chamelio PMS](#13-implementation-notes-for-chamelio-pms)
 
 ---
 
@@ -27,17 +27,17 @@
 
 ```
 ┌─────────────┐      ┌───────────┐      ┌─────────┐
-│  HotelOS    │─────▶│  Zodomus  │─────▶│  Airbnb  │
+│  Chamelio PMS    │─────▶│  Zodomus  │─────▶│  Airbnb  │
 │  (our PMS)  │◀─────│  (CH Mgr) │◀─────│  API     │
 └─────────────┘      └───────────┘      └─────────┘
      webhook◀────────push notifications
 ```
 
-- **Zodomus** acts as the channel manager intermediary — HotelOS never calls Airbnb directly.
+- **Zodomus** acts as the channel manager intermediary — Chamelio PMS never calls Airbnb directly.
 - All Airbnb API calls go through Zodomus REST endpoints.
 - Airbnb uses `channelId = 3` in all Zodomus API calls.
 - Authentication is per-Host via a `token` obtained during onboarding.
-- HotelOS must expose a **webhook endpoint** to receive push notifications from Zodomus.
+- Chamelio PMS must expose a **webhook endpoint** to receive push notifications from Zodomus.
 
 ---
 
@@ -164,7 +164,7 @@ When an existing listing connects to the API:
 
 ### Room Type listing (multi-unit)
 - `availableCount` > 1 (for Hotels and B&Bs)
-- **Airbnb does NOT auto-adjust `availableCount`** on booking — HotelOS must manage this manually
+- **Airbnb does NOT auto-adjust `availableCount`** on booking — Chamelio PMS must manage this manually
 - Max value: 500
 
 ### availableCount rules
@@ -572,7 +572,7 @@ The webhook receives **3 different body types**:
 | POST messages | 50 calls/minute (< 1/sec) |
 | GET messages | 400 calls/minute |
 
-### HotelOS Implementation Requirements
+### Chamelio PMS Implementation Requirements
 
 - Max **1 API call per second** per API endpoint
 - Ideally less, since limits are shared with other Zodomus clients
@@ -690,11 +690,11 @@ Airbnb IDs are migrating from 64-bit integers to **128-character URL-safe string
 - `roomtype_id`, `thread_id`, `seasonal_rule_set_id`
 - `reservation_alteration_id`, `rate_plan_id`
 
-**HotelOS requirement:** All Airbnb-related ID columns must be `VARCHAR(128)` or `TEXT`, never integer.
+**Chamelio PMS requirement:** All Airbnb-related ID columns must be `VARCHAR(128)` or `TEXT`, never integer.
 
 ---
 
-## 13. Implementation Notes for HotelOS
+## 13. Implementation Notes for Chamelio PMS
 
 ### Database Considerations
 - All Airbnb IDs stored as `TEXT` / `VARCHAR(128)` (not integer)
@@ -717,11 +717,11 @@ Airbnb IDs are migrating from 64-bit integers to **128-character URL-safe string
 
 ### Availability Management
 - For single-unit listings: Airbnb auto-manages (just like Booking.com)
-- For multi-unit listings: HotelOS must send `availableCount` updates on every reservation change
+- For multi-unit listings: Chamelio PMS must send `availableCount` updates on every reservation change
 - Always send `availability` + `availableCount` together
 
 ### Calendar Sync
-- Push-based: HotelOS pushes prices/availability to Airbnb via `POST airbnb-calendar`
+- Push-based: Chamelio PMS pushes prices/availability to Airbnb via `POST airbnb-calendar`
 - Calendar operations are async — don't assume immediate effect
 - Use the standard Zodomus `POST availability` for rates (priceModelId = 4, per day)
 

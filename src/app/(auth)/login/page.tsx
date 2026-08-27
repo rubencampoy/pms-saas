@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
 import { LoginForm } from '@/components/auth/login-form';
-import { HotelOSLogo } from '@/components/shared/hotel-os-logo';
+import { ChamelioLogo } from '@/components/shared/chamelio-logo';
 
 export const metadata: Metadata = {
-  title: 'Iniciar sesión — HotelOS',
+  title: 'Iniciar sesión',
 };
 
 export default function LoginPage() {
@@ -12,8 +12,8 @@ export default function LoginPage() {
       {/* Left panel — branding */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-[#0a1118] to-[#1a2632] flex-col justify-between p-12">
         <div className="flex items-center gap-3">
-          <HotelOSLogo className="h-10 w-10" />
-          <span className="text-xl font-bold text-white">HotelOS</span>
+          <ChamelioLogo className="h-10 w-10" />
+          <span className="text-xl font-bold text-white">Chamelio PMS</span>
         </div>
 
         <div className="space-y-6">
@@ -45,7 +45,7 @@ export default function LoginPage() {
         </div>
 
         <p className="text-xs text-slate-600">
-          &copy; {new Date().getFullYear()} HotelOS. Todos los derechos reservados.
+          &copy; {new Date().getFullYear()} Chamelio PMS. Todos los derechos reservados.
         </p>
       </div>
 
@@ -54,8 +54,8 @@ export default function LoginPage() {
         <div className="w-full max-w-md space-y-8">
           {/* Mobile logo */}
           <div className="flex items-center gap-3 lg:hidden">
-            <HotelOSLogo className="h-10 w-10" />
-            <span className="text-xl font-bold text-slate-900 dark:text-white">HotelOS</span>
+            <ChamelioLogo className="h-10 w-10" />
+            <span className="text-xl font-bold text-slate-900 dark:text-white">Chamelio PMS</span>
           </div>
 
           <div>

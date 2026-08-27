@@ -1,8 +1,8 @@
-interface HotelOSLogoProps {
+interface ChamelioLogoProps {
   className?: string;
 }
 
-export function HotelOSLogo({ className = 'h-8 w-8' }: HotelOSLogoProps) {
+export function ChamelioLogo({ className = 'h-8 w-8' }: ChamelioLogoProps) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"

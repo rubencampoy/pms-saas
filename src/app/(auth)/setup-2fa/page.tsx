@@ -9,7 +9,7 @@ import { buildOtpauthUri, renderQrDataUrl } from '@/lib/auth/totp';
 import { SetupTotpForm } from '@/components/auth/setup-2fa-form';
 
 export const metadata: Metadata = {
-  title: 'Configurar autenticación en dos pasos — HotelOS',
+  title: 'Configurar autenticación en dos pasos',
 };
 
 export default async function SetupTwoFactorPage({
@@ -43,7 +43,7 @@ export default async function SetupTwoFactorPage({
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-white font-bold text-xl">
             H
           </div>
-          <span className="text-xl font-bold text-slate-900 dark:text-white">HotelOS</span>
+          <span className="text-xl font-bold text-slate-900 dark:text-white">Chamelio PMS</span>
         </div>
 
         <div>

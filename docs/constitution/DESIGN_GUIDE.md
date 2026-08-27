@@ -8,7 +8,7 @@
 
 ## 1. Brand & Identity
 
-- **App Name:** HotelOS (use this consistently)
+- **App Name:** Chamelio PMS (use this consistently)
 - **Logo:** Letter "H" in white on primary-colored rounded square (`rounded-lg`, 32×32px)
 - **Font Family:** `Manrope` (Google Fonts) — all weights 300–700
 - **Antialiasing:** `antialiased` on body, `selection:bg-primary/20 selection:text-primary`
