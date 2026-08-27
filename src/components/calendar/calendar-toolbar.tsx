@@ -3,6 +3,13 @@
 import { useState, useCallback } from 'react';
 import { format, addMonths, subMonths, startOfMonth } from 'date-fns';
 import { useTranslations } from 'next-intl';
+import { RoomTypeFilter } from './room-type-filter';
+
+interface RoomTypeFilterItem {
+  id: string;
+  name: string;
+  unitCount: number;
+}
 
 interface CalendarToolbarProps {
   currentDate: Date;
@@ -12,6 +19,14 @@ interface CalendarToolbarProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
   onScrollToDate: (date: Date) => void;
+  roomTypeFilterItems: RoomTypeFilterItem[];
+  hiddenRoomTypeIds: Set<string>;
+  collapsedRoomTypeIds: Set<string>;
+  onToggleRoomTypeHidden: (id: string) => void;
+  onToggleRoomTypeCollapsed: (id: string) => void;
+  onShowAllRoomTypes: () => void;
+  onCollapseAllRoomTypes: () => void;
+  onExpandAllRoomTypes: () => void;
 }
 
 export function CalendarToolbar({
@@ -22,6 +37,14 @@ export function CalendarToolbar({
   searchQuery,
   onSearchChange,
   onScrollToDate,
+  roomTypeFilterItems,
+  hiddenRoomTypeIds,
+  collapsedRoomTypeIds,
+  onToggleRoomTypeHidden,
+  onToggleRoomTypeCollapsed,
+  onShowAllRoomTypes,
+  onCollapseAllRoomTypes,
+  onExpandAllRoomTypes,
 }: CalendarToolbarProps) {
   const t = useTranslations('calendarToolbar');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -111,6 +134,18 @@ export function CalendarToolbar({
               {t('maintenance')}
             </div>
           </div>
+
+          {/* Room type filter */}
+          <RoomTypeFilter
+            roomTypes={roomTypeFilterItems}
+            hiddenIds={hiddenRoomTypeIds}
+            collapsedIds={collapsedRoomTypeIds}
+            onToggleHidden={onToggleRoomTypeHidden}
+            onToggleCollapsed={onToggleRoomTypeCollapsed}
+            onShowAll={onShowAllRoomTypes}
+            onCollapseAll={onCollapseAllRoomTypes}
+            onExpandAll={onExpandAllRoomTypes}
+          />
 
           {/* Search */}
           <div className="relative">

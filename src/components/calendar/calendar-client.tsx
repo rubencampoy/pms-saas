@@ -24,6 +24,7 @@ import { RateOverridePopover } from './rate-override-popover';
 import { VALID_STATUS_TRANSITIONS, ReservationStatus } from '@/lib/constants/reservation';
 import { toast } from '@/lib/hooks/use-toast';
 import { useTranslations } from 'next-intl';
+import { useRoomTypePrefs } from './use-room-type-prefs';
 
 interface Property {
   id: string;
@@ -113,6 +114,9 @@ const COL_WIDTH = 68;
 
 const ASSIGNABLE_STATUSES = new Set(['confirmed', 'checked_in']);
 
+const toggleId = (ids: string[], id: string) =>
+  ids.includes(id) ? ids.filter((existing) => existing !== id) : [...ids, id];
+
 const HK_BADGE: Record<string, { cls: string; label: string }> = {
   clean: { cls: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400', label: 'Clean' },
   dirty: { cls: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400', label: 'Dirty' },
@@ -136,6 +140,7 @@ export function CalendarClient({
   initialEndDate,
 }: CalendarClientProps) {
   const tCtx = useTranslations('contextMenu');
+  const tToolbar = useTranslations('calendarToolbar');
   const tBlockPopover = useTranslations('roomBlockPopover');
   const router = useRouter();
 
@@ -189,6 +194,38 @@ export function CalendarClient({
 
   // Pending panel state
   const [isPendingPanelOpen, setIsPendingPanelOpen] = useState(false);
+
+  // Room type visibility / collapse state — persisted per property in localStorage
+  const [roomTypePrefs, setRoomTypePrefs] = useRoomTypePrefs(
+    `chamelio.calendar.roomTypePrefs.${defaultPropertyId}`,
+  );
+  const collapsedRoomTypeIds = useMemo(() => new Set(roomTypePrefs.collapsed), [roomTypePrefs.collapsed]);
+  const hiddenRoomTypeIds = useMemo(() => new Set(roomTypePrefs.hidden), [roomTypePrefs.hidden]);
+
+  const toggleRoomTypeCollapsed = useCallback(
+    (id: string) => setRoomTypePrefs((prev) => ({ ...prev, collapsed: toggleId(prev.collapsed, id) })),
+    [setRoomTypePrefs],
+  );
+
+  const toggleRoomTypeHidden = useCallback(
+    (id: string) => setRoomTypePrefs((prev) => ({ ...prev, hidden: toggleId(prev.hidden, id) })),
+    [setRoomTypePrefs],
+  );
+
+  const showAllRoomTypes = useCallback(
+    () => setRoomTypePrefs((prev) => ({ ...prev, hidden: [] })),
+    [setRoomTypePrefs],
+  );
+
+  const collapseAllRoomTypes = useCallback(
+    () => setRoomTypePrefs((prev) => ({ ...prev, collapsed: roomTypes.map((rt) => rt.id) })),
+    [setRoomTypePrefs, roomTypes],
+  );
+
+  const expandAllRoomTypes = useCallback(
+    () => setRoomTypePrefs((prev) => ({ ...prev, collapsed: [] })),
+    [setRoomTypePrefs],
+  );
 
   // Drag-to-create reservation state
   const [dragCreate, setDragCreate] = useState<{
@@ -569,6 +606,29 @@ export function CalendarClient({
       return { roomType: rt, units: filteredUnits };
     }).filter((g) => g.units.length > 0);
   }, [roomTypes, units, searchQuery, optimisticReservations, guestMap]);
+
+  // Groups actually rendered: hidden types removed, collapsed types render header only
+  const displayGroups = useMemo(
+    () =>
+      groupedUnits
+        .filter((g) => !hiddenRoomTypeIds.has(g.roomType.id))
+        .map((g) => ({ ...g, isCollapsed: collapsedRoomTypeIds.has(g.roomType.id) })),
+    [groupedUnits, hiddenRoomTypeIds, collapsedRoomTypeIds],
+  );
+
+  // Room types offered in the toolbar filter (all types with units, regardless of search)
+  const roomTypeFilterItems = useMemo(
+    () =>
+      [...roomTypes]
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map((rt) => ({
+          id: rt.id,
+          name: rt.name,
+          unitCount: units.filter((u) => u.roomTypeId === rt.id).length,
+        }))
+        .filter((rt) => rt.unitCount > 0),
+    [roomTypes, units],
+  );
 
   // Map reservations by unitId for quick lookup
   const resByUnit = useMemo(() => {
@@ -1324,6 +1384,14 @@ export function CalendarClient({
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         onScrollToDate={handleScrollToDate}
+        roomTypeFilterItems={roomTypeFilterItems}
+        hiddenRoomTypeIds={hiddenRoomTypeIds}
+        collapsedRoomTypeIds={collapsedRoomTypeIds}
+        onToggleRoomTypeHidden={toggleRoomTypeHidden}
+        onToggleRoomTypeCollapsed={toggleRoomTypeCollapsed}
+        onShowAllRoomTypes={showAllRoomTypes}
+        onCollapseAllRoomTypes={collapseAllRoomTypes}
+        onExpandAllRoomTypes={expandAllRoomTypes}
       />
 
       {/* Main content: pending panel + calendar area */}
@@ -1471,16 +1539,26 @@ export function CalendarClient({
                 className="flex-shrink-0 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 z-30 shadow-[4px_0_24px_-12px_rgba(0,0,0,0.1)]"
                 style={{ width: SIDEBAR_WIDTH }}
               >
-                {groupedUnits.map((group) => (
+                {displayGroups.map((group) => (
                   <div key={group.roomType.id}>
-                    <div
-                      className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between px-4"
+                    <button
+                      type="button"
+                      onClick={() => toggleRoomTypeCollapsed(group.roomType.id)}
+                      title={group.isCollapsed ? tToolbar('expandGroup') : tToolbar('collapseGroup')}
+                      className="w-full bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between px-3 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors group/rt"
                       style={{ height: INFO_ROW_HEIGHT }}
                     >
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate">{group.roomType.name}</span>
-                      <span className="text-[10px] text-slate-400 font-medium ml-1 whitespace-nowrap">Avail.</span>
-                    </div>
-                    {group.units.map((unit) => {
+                      <span className="flex items-center gap-1 min-w-0">
+                        <span className="material-icons text-[16px] text-slate-400 group-hover/rt:text-primary transition-colors flex-shrink-0">
+                          {group.isCollapsed ? 'chevron_right' : 'expand_more'}
+                        </span>
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate">{group.roomType.name}</span>
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-medium ml-1 whitespace-nowrap">
+                        {group.isCollapsed ? tToolbar('unitCount', { count: group.units.length }) : 'Avail.'}
+                      </span>
+                    </button>
+                    {!group.isCollapsed && group.units.map((unit) => {
                       const hk = HK_BADGE[unit.housekeepingStatus];
                       return (
                         <div
@@ -1544,7 +1622,7 @@ export function CalendarClient({
                   </div>
 
                   {/* Room type groups with rows */}
-                  {groupedUnits.map((group) => {
+                  {displayGroups.map((group) => {
                     const rtAvail = availabilityByRoomTypeDay.get(group.roomType.id);
                     return (
                       <div key={group.roomType.id}>
@@ -1613,7 +1691,7 @@ export function CalendarClient({
                             );
                           })}
                         </div>
-                        {group.units.map((unit) => (
+                        {!group.isCollapsed && group.units.map((unit) => (
                           <UnitRow
                             key={unit.id}
                             unit={unit}

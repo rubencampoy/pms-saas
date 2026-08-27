@@ -401,7 +401,15 @@
     "checkedIn": "Alojado",
     "maintenance": "Mantenimiento",
     "pendingCount": "{count} pendientes",
-    "newBooking": "Nueva Reserva"
+    "newBooking": "Nueva Reserva",
+    "roomTypeFilter": "Tipologías",
+    "roomTypes": "Tipologías de habitación",
+    "showAll": "Mostrar todas",
+    "collapseAll": "Plegar todas",
+    "expandAll": "Desplegar todas",
+    "collapseGroup": "Plegar tipología",
+    "expandGroup": "Desplegar tipología",
+    "unitCount": "{count, plural, one {# hab.} other {# hab.}}"
   },
   "contextMenu": {
     "viewDetails": "Ver Detalles",

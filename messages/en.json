@@ -401,7 +401,15 @@
     "checkedIn": "Checked In",
     "maintenance": "Maintenance",
     "pendingCount": "{count} pending",
-    "newBooking": "New Booking"
+    "newBooking": "New Booking",
+    "roomTypeFilter": "Room types",
+    "roomTypes": "Room types",
+    "showAll": "Show all",
+    "collapseAll": "Collapse all",
+    "expandAll": "Expand all",
+    "collapseGroup": "Collapse room type",
+    "expandGroup": "Expand room type",
+    "unitCount": "{count, plural, one {# room} other {# rooms}}"
   },
   "contextMenu": {
     "viewDetails": "View Details",
