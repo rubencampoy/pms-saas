@@ -32,6 +32,19 @@ const GENERIC_AUTH_ERROR = 'Email o contraseña incorrectos';
 const STEP_EXPIRED = 'La sesión de inicio ha expirado. Vuelve a introducir tus credenciales.';
 const INVALID_CODE = 'Código incorrecto. Inténtalo de nuevo.';
 
+/**
+ * `signIn` only runs once every factor has already been verified, so a failure
+ * here is never a credential problem — it is an Auth.js configuration one
+ * (`UntrustedHost`, `MissingSecret`…). We still show the generic message so we
+ * never leak which factor failed, but the real cause must reach the server logs
+ * or it is invisible: a misconfigured host looks exactly like a wrong password.
+ */
+function reportAuthError(error: unknown): boolean {
+  if (!(error instanceof AuthError)) return false;
+  console.error(`[auth] signIn failed: ${error.type}:`, error.message);
+  return true;
+}
+
 export type LoginNext =
   | { next: 'done' }
   | { next: 'totp'; pendingToken: string }
@@ -79,7 +92,7 @@ export async function loginStep1Action(
       await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, user.id));
       return { success: true, data: { next: 'done' } };
     } catch (error) {
-      if (error instanceof AuthError) return { success: false, error: GENERIC_AUTH_ERROR };
+      if (reportAuthError(error)) return { success: false, error: GENERIC_AUTH_ERROR };
       throw error;
     }
   }
@@ -169,7 +182,7 @@ export async function setupTotpAction(input: {
       redirect: false,
     });
   } catch (error) {
-    if (error instanceof AuthError) return { success: false, error: GENERIC_AUTH_ERROR };
+    if (reportAuthError(error)) return { success: false, error: GENERIC_AUTH_ERROR };
     throw error;
   }
 
@@ -243,7 +256,7 @@ export async function verifyTotpAction(input: {
       redirect: false,
     });
   } catch (error) {
-    if (error instanceof AuthError) return { success: false, error: GENERIC_AUTH_ERROR };
+    if (reportAuthError(error)) return { success: false, error: GENERIC_AUTH_ERROR };
     throw error;
   }
 

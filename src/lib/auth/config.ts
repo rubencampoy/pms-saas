@@ -173,4 +173,14 @@ export const authConfig: NextAuthConfig = {
     maxAge: 24 * 60 * 60, // 24 hours
   },
   secret: process.env.AUTH_SECRET,
+  /**
+   * Trust the proxy's `x-forwarded-host` to derive the canonical URL. Vercel
+   * sets that header itself, so it cannot be spoofed from outside.
+   *
+   * Without this, Auth.js only infers it from `process.env.VERCEL` at runtime;
+   * when that is unavailable every `signIn` fails with `UntrustedHost`, which
+   * the login action masks as a generic credential error. Setting it here
+   * rather than via `AUTH_URL` keeps each deployment on its own host.
+   */
+  trustHost: true,
 };
