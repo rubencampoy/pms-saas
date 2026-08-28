@@ -32,6 +32,49 @@ interface PropertiesClientProps {
   units: Unit[];
 }
 
+/**
+ * The property's UUID, which is what an integration (the guest-app, or any
+ * other API consumer) has to be configured with. It appears nowhere else in
+ * the app — not in a URL, not in the edit dialog — so without this row the
+ * only way to get it was to read it out of another system's error message.
+ */
+function IntegrationId({ id }: { id: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(id);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Sin permiso de portapapeles (o sin HTTPS) el texto sigue ahí para
+      // seleccionarlo a mano; no hay nada que avisar.
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-2 mt-3 px-3 py-2 rounded-lg bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-slate-800">
+      <span className="material-icons text-base text-slate-400">vpn_key</span>
+      <span
+        className="text-xs font-medium text-slate-500 dark:text-slate-400 shrink-0"
+        title="Identificador de esta propiedad para las integraciones por API"
+      >
+        ID de integración
+      </span>
+      <code className="font-mono text-xs text-slate-700 dark:text-slate-200 truncate">{id}</code>
+      <button
+        type="button"
+        onClick={copy}
+        aria-label="Copiar el ID de integración"
+        className="ml-auto shrink-0 flex items-center gap-1 px-2 py-1 text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-primary hover:bg-primary/5 rounded-lg transition-colors"
+      >
+        <span className="material-icons text-base">{copied ? 'check' : 'content_copy'}</span>
+        {copied ? 'Copiado' : 'Copiar'}
+      </button>
+    </div>
+  );
+}
+
 function asAddress(val: unknown): Record<string, string> | null {
   if (val && typeof val === 'object' && !Array.isArray(val)) return val as Record<string, string>;
   return null;
@@ -152,6 +195,9 @@ export function PropertiesClient({ properties, roomTypes, units }: PropertiesCli
                     {property.timezone}
                   </div>
                 </div>
+
+                {/* Integration id — the value external products ask for */}
+                <IntegrationId id={property.id} />
 
                 {/* Contact info */}
                 {(property.phone || property.email) && (
