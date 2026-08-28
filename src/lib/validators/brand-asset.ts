@@ -28,8 +28,10 @@ export const BRAND_ASSET_RULES: Record<BrandAssetKind, BrandAssetRule> = {
   },
   favicon: {
     // Se sirve tal cual como <link rel="icon">, así que conviene que sea diminuto.
+    // Los .ico llegan como image/x-icon o image/vnd.microsoft.icon según el
+    // navegador/SO de quien sube; hay que aceptar ambos.
     maxSize: 100 * 1024,
-    types: ['image/png', 'image/x-icon', 'image/svg+xml'],
+    types: ['image/png', 'image/x-icon', 'image/vnd.microsoft.icon', 'image/svg+xml'],
   },
   cover: {
     maxSize: 3 * 1024 * 1024,
