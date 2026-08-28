@@ -63,6 +63,10 @@ export const listRoomTypesQuerySchema = z.object({
   propertyId: z.string().uuid('Invalid property ID').optional(),
 });
 
+export const listUnitsQuerySchema = z.object({
+  propertyId: z.string().uuid('Invalid property ID').optional(),
+});
+
 /** `?include=guest,unit,folio` — expand related resources on a single reservation. */
 export const reservationIncludeSchema = z.object({
   include: includeParam(['guest', 'unit', 'folio']),

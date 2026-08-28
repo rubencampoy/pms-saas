@@ -56,7 +56,7 @@ Lost keys are replaced, not recovered.
 | Scope | Grants |
 |---|---|
 | `properties:read` | Properties and their public settings |
-| `room_types:read` | Room types and images |
+| `room_types:read` | Room types and images, and the units of a property |
 | `reservations:read` | Reservations |
 | `guests:read` | Guest profiles, and the `guest` expansion on reservations |
 | `folios:read` | Folios, charges, balances |
@@ -274,6 +274,29 @@ access controls and are withheld deliberately.
 
 `?propertyId` filters. `images` merges the managed `room_type_images` rows
 (cover first, then sort order) with the legacy URL array, de-duplicated.
+
+### `GET /units` — `room_types:read`
+
+The physical rooms/apartments. `?propertyId` filters. Bounded list, not
+paginated, in the PMS's own display order.
+
+```json
+{
+  "id": "967b3c0b-…", "propertyId": "a5eba281-…", "roomTypeId": "f35f4d6a-…",
+  "name": "403", "floor": "4", "isActive": true
+}
+```
+
+It exists so an integration can **mirror the inventory instead of having
+someone retype it**: door locks are configured per unit, and a name typed by
+hand into two systems drifts. Store the `id` alongside your own room and match
+on it — matching on `name` breaks the day a unit is renamed here.
+
+`isActive` is exposed on purpose: an importer needs to know which units are
+retired, or it recreates them on every run.
+
+**Never returned:** `organizationId`, `status`, `housekeepingStatus`, `notes`,
+`sortOrder`.
 
 ### `GET /folios/{id}` — `folios:read`
 

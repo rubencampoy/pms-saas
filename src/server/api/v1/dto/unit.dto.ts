@@ -13,8 +13,12 @@ type UnitRow = typeof units.$inferSelect;
  *   - `status`, `housekeepingStatus`  operational state of the PMS floor,
  *                                     not something an outside product acts on
  *   - `notes`                         staff-only free text
- *   - `isActive`, `sortOrder`         inventory bookkeeping
+ *   - `sortOrder`                     display bookkeeping; the list already
+ *                                     comes back in that order
  *   - `organizationId`                the caller is already scoped to it
+ *
+ * `isActive` *is* exposed: an integration importing this inventory has to know
+ * which units are retired, or it recreates them on every import.
  *
  * No extra scope gates this expansion: `reservations:read` already exposes
  * `unitId`, and a unit's name carries no personal data. The scopes that gate
@@ -23,14 +27,20 @@ type UnitRow = typeof units.$inferSelect;
  */
 export interface UnitDto {
   id: string;
+  propertyId: string;
+  roomTypeId: string;
   name: string;
   floor: string | null;
+  isActive: boolean;
 }
 
 export function toUnitDto(row: UnitRow): UnitDto {
   return {
     id: row.id,
+    propertyId: row.propertyId,
+    roomTypeId: row.roomTypeId,
     name: row.name,
     floor: row.floor,
+    isActive: row.isActive,
   };
 }

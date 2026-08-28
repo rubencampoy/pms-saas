@@ -306,7 +306,7 @@ const unit: typeof units.$inferSelect = {
 };
 
 describe('toUnitDto', () => {
-  it('never leaks housekeeping state, staff notes or inventory bookkeeping', () => {
+  it('never leaks housekeeping state, staff notes or display bookkeeping', () => {
     const serialized = JSON.stringify(toUnitDto(unit));
 
     expect(serialized).not.toContain('occupied');
@@ -314,12 +314,17 @@ describe('toUnitDto', () => {
     expect(serialized).not.toContain('housekeeping');
     expect(serialized).not.toContain('Lock battery');
     expect(serialized).not.toContain('sortOrder');
-    expect(serialized).not.toContain('isActive');
     expect(serialized).not.toContain(ORG);
   });
 
   it('exposes exactly the documented fields', () => {
-    expect(Object.keys(toUnitDto(unit)).sort()).toEqual(['floor', 'id', 'name']);
+    expect(Object.keys(toUnitDto(unit)).sort()).toEqual([
+      'floor', 'id', 'isActive', 'name', 'propertyId', 'roomTypeId',
+    ]);
+  });
+
+  it('reports a retired unit, so an import does not resurrect it', () => {
+    expect(toUnitDto({ ...unit, isActive: false }).isActive).toBe(false);
   });
 
   it('keeps the name, which is what an integration matches a door lock on', () => {
