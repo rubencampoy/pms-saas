@@ -44,3 +44,5 @@ next-env.d.ts
 
 # uploaded files (local storage)
 public/uploads/
+.env*
+!.env*.example
