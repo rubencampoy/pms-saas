@@ -582,6 +582,22 @@ export function CalendarClient({
 
   const days = Array.from({ length: totalDays }, (_, i) => addDays(startDate, i));
 
+  // Today's column inside the loaded window (-1 when today is outside it)
+  const todayIndex = days.findIndex((day) => isToday(day));
+
+  // Position of "now" inside today's column, as a 0-1 fraction of the day.
+  // Set after mount so server and client markup match; refreshed every minute.
+  const [nowFraction, setNowFraction] = useState<number | null>(null);
+  useEffect(() => {
+    const update = () => {
+      const now = new Date();
+      setNowFraction((now.getHours() * 60 + now.getMinutes()) / 1440);
+    };
+    update();
+    const id = setInterval(update, 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   // Group units by room type — with search filtering
   const groupedUnits = useMemo(() => {
     const sorted = [...roomTypes].sort((a, b) => a.sortOrder - b.sortOrder);
@@ -1471,8 +1487,9 @@ export function CalendarClient({
                   className="flex border-b border-slate-200 dark:border-slate-700"
                   style={{ height: HEADER_HEIGHT }}
                 >
-                  {days.map((day) => {
+                  {days.map((day, dayIndex) => {
                     const today = isToday(day);
+                    const past = todayIndex >= 0 && dayIndex < todayIndex;
                     const weekend = isWeekend(day);
                     const dayStr = format(day, 'yyyy-MM-dd');
                     const occ = occupancyByDay.get(dayStr) ?? 0;
@@ -1481,22 +1498,29 @@ export function CalendarClient({
                     return (
                       <div
                         key={day.toISOString()}
-                        className={`flex-shrink-0 border-r border-slate-200 dark:border-slate-600 h-full flex flex-col items-center justify-center relative ${
+                        className={`flex-shrink-0 h-full flex flex-col items-center justify-center relative ${
                           today
-                            ? 'bg-primary/5 dark:bg-primary/10'
+                            ? 'border-x-2 border-primary/70 bg-primary/10 dark:bg-primary/20'
                             : weekend
-                              ? 'bg-amber-50/40 dark:bg-amber-900/10'
-                              : ''
+                              ? 'border-r border-slate-200 dark:border-slate-600 bg-amber-50/40 dark:bg-amber-900/10'
+                              : 'border-r border-slate-200 dark:border-slate-600'
                         }`}
                         style={{ width: colWidth }}
                       >
-                        <span className={`text-sm font-medium leading-none ${
-                          today
-                            ? 'text-primary dark:text-blue-400'
-                            : weekend
+                        {past && (
+                          <div className="absolute inset-0 bg-slate-500/[0.06] dark:bg-slate-900/20 pointer-events-none" />
+                        )}
+                        {today ? (
+                          <span className="text-[11px] font-bold leading-none px-1.5 py-1 rounded-full bg-primary text-white shadow-sm whitespace-nowrap">
+                            {format(day, 'EEE')} {format(day, 'd')}
+                          </span>
+                        ) : (
+                          <span className={`text-sm font-medium leading-none ${
+                            weekend
                               ? 'text-amber-600 dark:text-amber-400'
                               : 'text-slate-600 dark:text-slate-300'
-                        }`}>{format(day, 'EEE')} {format(day, 'd')}</span>
+                          }`}>{format(day, 'EEE')} {format(day, 'd')}</span>
+                        )}
                         <span className={`text-xs font-bold leading-none mt-0.5 ${
                           occ >= 90
                             ? 'text-red-600 dark:text-red-400'
@@ -1519,6 +1543,9 @@ export function CalendarClient({
                           >
                             {unassignedCount}
                           </button>
+                        )}
+                        {today && (
+                          <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-primary" />
                         )}
                       </div>
                     );
@@ -1596,27 +1623,15 @@ export function CalendarClient({
                   {/* Column backgrounds */}
                   <div className="absolute inset-0 flex pointer-events-none h-full z-0">
                     {days.map((day) => {
-                      const today = isToday(day);
                       const weekend = isWeekend(day);
                       return (
                         <div
                           key={`bg-${day.toISOString()}`}
                           className={`flex-shrink-0 border-r border-slate-200 dark:border-slate-700 h-full relative ${
-                            today
-                              ? 'bg-primary/5 dark:bg-primary/5'
-                              : weekend
-                                ? 'bg-amber-50/40 dark:bg-amber-900/10'
-                                : ''
+                            weekend ? 'bg-amber-50/40 dark:bg-amber-900/10' : ''
                           }`}
                           style={{ width: colWidth }}
-                        >
-                          {/* Removed: vertical dashed line dividing days in half */}
-                          {today && (
-                            <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-red-400/50 z-20">
-                              <div className="w-2 h-2 bg-red-400 rounded-full absolute -top-1 -left-[3px]" />
-                            </div>
-                          )}
-                        </div>
+                        />
                       );
                     })}
                   </div>
@@ -1723,6 +1738,32 @@ export function CalendarClient({
                       </div>
                     );
                   })}
+
+                  {/* Today marker — drawn above the rows so the band and the "now"
+                      line stay visible across price rows and reservation blocks */}
+                  {todayIndex >= 0 && (
+                    <>
+                      {todayIndex > 0 && (
+                        <div
+                          className="absolute top-0 bottom-0 left-0 pointer-events-none z-40 bg-slate-500/[0.06] dark:bg-slate-900/20"
+                          style={{ width: todayIndex * colWidth }}
+                        />
+                      )}
+                      <div
+                        className="absolute top-0 bottom-0 pointer-events-none z-40 bg-primary/[0.07] dark:bg-primary/10 border-x-2 border-primary/70"
+                        style={{ left: todayIndex * colWidth, width: colWidth }}
+                      >
+                        {nowFraction !== null && (
+                          <div
+                            className="absolute top-0 bottom-0 w-0.5 bg-red-500/60"
+                            style={{ left: `${nowFraction * 100}%` }}
+                          >
+                            <div className="w-2 h-2 bg-red-500 rounded-full absolute top-0 -left-[3px]" />
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
