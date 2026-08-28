@@ -53,6 +53,19 @@ export const bookingEngineSettings = pgTable(
     googleAdsConversionLabel: varchar('google_ads_conversion_label', { length: 50 }).default(''),
     facebookPixelId: varchar('facebook_pixel_id', { length: 50 }).default(''),
 
+    // ── Branding tab ──
+    // Imagen corporativa del cliente. Se aplica al motor de reservas público:
+    // el color repinta --color-primary y los assets sustituyen la marca Chamelio.
+    brandDisplayName: varchar('brand_display_name', { length: 120 }).default(''),
+    brandPrimaryColor: varchar('brand_primary_color', { length: 7 }).notNull().default('#137fec'),
+    brandLogoUrl: varchar('brand_logo_url', { length: 500 }).default(''),
+    brandFaviconUrl: varchar('brand_favicon_url', { length: 500 }).default(''),
+    brandCoverImageUrl: varchar('brand_cover_image_url', { length: 500 }).default(''),
+    brandHideChamelio: boolean('brand_hide_chamelio').notNull().default(false),
+    brandPrivacyUrl: varchar('brand_privacy_url', { length: 500 }).default(''),
+    brandTermsUrl: varchar('brand_terms_url', { length: 500 }).default(''),
+    brandCookiesUrl: varchar('brand_cookies_url', { length: 500 }).default(''),
+
     // ── Widgets tab ──
     widgetType: varchar('widget_type', { length: 20 }).notNull().default('stacked'),
     widgetLanguage: varchar('widget_language', { length: 10 }).notNull().default('es'),

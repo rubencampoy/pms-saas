@@ -130,7 +130,8 @@
       "analytics": "Analytics",
       "widgets": "Widgets",
       "customization": "Customization",
-      "emails": "Emails"
+      "emails": "Emails",
+      "branding": "Branding"
     },
     "settings": {
       "availability": {
@@ -310,6 +311,51 @@
         "searchAvailability": "Search availability",
         "poweredBy": "Powered by"
       }
+    },
+    "branding": {
+      "identity": {
+        "title": "Identity",
+        "description": "Name and logo the guest will see in the booking engine",
+        "displayName": "Display name",
+        "displayNameHint": "Leave empty to use the property name",
+        "logo": "Logo",
+        "logoHint": "PNG, SVG, WEBP or JPG · max. 500 KB · shown in the header",
+        "favicon": "Favicon",
+        "faviconHint": "PNG, ICO or SVG · max. 100 KB · browser tab icon"
+      },
+      "color": {
+        "title": "Brand color",
+        "description": "Repaints buttons, steps and accents of the booking engine",
+        "lowContrast": "White text on this color has a contrast of {ratio}:1, below the recommended minimum of 4.5:1. Buttons may be hard to read."
+      },
+      "cover": {
+        "title": "Cover image",
+        "description": "Photo shown above the search box",
+        "image": "Cover",
+        "imageHint": "JPG, PNG or WEBP · max. 3 MB · cropped to a wide format"
+      },
+      "footer": {
+        "title": "Footer",
+        "description": "Legal links and footer branding",
+        "privacy": "Privacy policy",
+        "terms": "Terms of service",
+        "cookies": "Cookies",
+        "privacyShort": "Privacy",
+        "termsShort": "Terms",
+        "cookiesShort": "Cookies",
+        "hideChamelio": "Hide Chamelio branding",
+        "hideChamelioHint": "Removes the “Powered by Chamelio” line from the footer"
+      },
+      "preview": {
+        "title": "Preview",
+        "description": "Approximation of what the guest will see",
+        "yourHotel": "Your hotel",
+        "search": "Search",
+        "noFooterLinks": "No legal links configured",
+        "poweredBy": "Powered by Chamelio"
+      },
+      "upload": "Upload",
+      "remove": "Remove"
     }
   },
   "status": {
@@ -510,7 +556,7 @@
     "tomorrow": "Tomorrow"
   },
   "bookingEnginePublic": {
-    "poweredBy": "Powered by",
+    "poweredBy": "Powered by Chamelio",
     "selectProperty": "Select a Property",
     "selectPropertyDesc": "Choose the property you'd like to book at",
     "noProperties": "No Properties Available",

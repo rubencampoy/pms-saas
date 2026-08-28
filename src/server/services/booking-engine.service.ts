@@ -5,12 +5,14 @@ import { folioRepo, folioLineItemRepo } from '@/server/repositories/folio.repo';
 import { reservationService } from '@/server/services/reservation.service';
 import { ConflictError, NotFoundError } from '@/lib/errors';
 import { differenceInDays } from 'date-fns';
+import { DEFAULT_BRAND_COLOR } from '@/lib/validators/booking-engine-settings';
 import type {
   SearchResult,
   RatePlanOption,
   NightlyRate,
   AddonOption,
   BookingEngineSettings,
+  BookingBranding,
   PropertyInfo,
   BookingSummary,
   BookingSelection,
@@ -245,6 +247,30 @@ export const bookingEngineService = {
       return { ...DEFAULT_SETTINGS };
     }
     return mapSettings(settings);
+  },
+
+  /**
+   * Imagen corporativa de una propiedad, con los valores por defecto de Chamelio
+   * cuando no se ha configurado nada.
+   */
+  async getBranding(
+    organizationId: string,
+    propertyId: string,
+    propertyName: string,
+  ): Promise<BookingBranding> {
+    const settings = await bookingEngineRepo.findSettings(organizationId, propertyId);
+
+    return {
+      displayName: settings?.brandDisplayName || propertyName,
+      primaryColor: settings?.brandPrimaryColor || DEFAULT_BRAND_COLOR,
+      logoUrl: settings?.brandLogoUrl ?? '',
+      faviconUrl: settings?.brandFaviconUrl ?? '',
+      coverImageUrl: settings?.brandCoverImageUrl ?? '',
+      hideChamelio: settings?.brandHideChamelio ?? false,
+      privacyUrl: settings?.brandPrivacyUrl ?? '',
+      termsUrl: settings?.brandTermsUrl ?? '',
+      cookiesUrl: settings?.brandCookiesUrl ?? '',
+    };
   },
 
   /** Get property info for the booking engine header */

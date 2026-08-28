@@ -5,7 +5,9 @@ import { useTranslations } from 'next-intl';
 import { SettingsTab } from './settings-tab';
 import { AnalyticsTab } from './analytics-tab';
 import { WidgetsTab } from './widgets-tab';
+import { BrandingTab } from './branding-tab';
 import { saveBookingEngineSettings } from '@/server/actions/booking-engine-settings';
+import { DEFAULT_BRAND_COLOR } from '@/lib/validators/booking-engine-settings';
 import { toast } from '@/lib/hooks/use-toast';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -50,6 +52,16 @@ export interface BookingEngineFormData {
   googleAdsConversionId: string;
   googleAdsConversionLabel: string;
   facebookPixelId: string;
+  // Branding tab
+  brandDisplayName: string;
+  brandPrimaryColor: string;
+  brandLogoUrl: string;
+  brandFaviconUrl: string;
+  brandCoverImageUrl: string;
+  brandHideChamelio: boolean;
+  brandPrivacyUrl: string;
+  brandTermsUrl: string;
+  brandCookiesUrl: string;
   // Widgets tab
   widgetType: 'stacked' | 'horizontal' | 'floating' | 'bigButton' | 'smallButton' | 'overlay' | 'immersive';
   widgetLanguage: string;
@@ -87,15 +99,25 @@ const DEFAULT_FORM_DATA: BookingEngineFormData = {
   googleAdsConversionId: '',
   googleAdsConversionLabel: '',
   facebookPixelId: '',
+  brandDisplayName: '',
+  brandPrimaryColor: DEFAULT_BRAND_COLOR,
+  brandLogoUrl: '',
+  brandFaviconUrl: '',
+  brandCoverImageUrl: '',
+  brandHideChamelio: false,
+  brandPrivacyUrl: '',
+  brandTermsUrl: '',
+  brandCookiesUrl: '',
   widgetType: 'stacked',
   widgetLanguage: 'es',
   widgetOpenNewWindow: false,
 };
 
-type TabId = 'settings' | 'analytics' | 'widgets';
+type TabId = 'settings' | 'branding' | 'analytics' | 'widgets';
 
 const TABS: { id: TabId; icon: string; tKey: string }[] = [
   { id: 'settings', icon: 'tune', tKey: 'settings' },
+  { id: 'branding', icon: 'palette', tKey: 'branding' },
   { id: 'analytics', icon: 'analytics', tKey: 'analytics' },
   { id: 'widgets', icon: 'widgets', tKey: 'widgets' },
 ];
@@ -212,6 +234,16 @@ export function BookingEngineClient({ organizationSlug, properties, savedSetting
       {/* Tab content */}
       {activeTab === 'settings' && (
         <SettingsTab data={formData} onChange={updateField} onSave={handleSave} isPending={isPending} />
+      )}
+      {activeTab === 'branding' && (
+        <BrandingTab
+          data={formData}
+          onChange={updateField}
+          onSave={handleSave}
+          isPending={isPending}
+          propertyId={selectedPropertyId}
+          propertyName={selectedProperty?.name ?? ''}
+        />
       )}
       {activeTab === 'analytics' && (
         <AnalyticsTab data={formData} onChange={updateField} onSave={handleSave} isPending={isPending} />

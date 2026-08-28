@@ -130,7 +130,8 @@
       "analytics": "Analítica",
       "widgets": "Widgets",
       "customization": "Personalización",
-      "emails": "Emails"
+      "emails": "Emails",
+      "branding": "Marca"
     },
     "settings": {
       "availability": {
@@ -310,6 +311,51 @@
         "searchAvailability": "Buscar disponibilidad",
         "poweredBy": "Powered by"
       }
+    },
+    "branding": {
+      "identity": {
+        "title": "Identidad",
+        "description": "Nombre y logotipo que verá el huésped en el motor de reservas",
+        "displayName": "Nombre visible",
+        "displayNameHint": "Si lo dejas vacío se usa el nombre de la propiedad",
+        "logo": "Logotipo",
+        "logoHint": "PNG, SVG, WEBP o JPG · máx. 500 KB · se muestra en la cabecera",
+        "favicon": "Favicon",
+        "faviconHint": "PNG, ICO o SVG · máx. 100 KB · icono de la pestaña del navegador"
+      },
+      "color": {
+        "title": "Color corporativo",
+        "description": "Repinta botones, pasos y acentos del motor de reservas",
+        "lowContrast": "El texto blanco sobre este color tiene un contraste de {ratio}:1, por debajo del mínimo recomendado de 4,5:1. Los botones pueden resultar difíciles de leer."
+      },
+      "cover": {
+        "title": "Imagen de portada",
+        "description": "Foto que aparece sobre el buscador",
+        "image": "Portada",
+        "imageHint": "JPG, PNG o WEBP · máx. 3 MB · se recorta en formato panorámico"
+      },
+      "footer": {
+        "title": "Pie de página",
+        "description": "Enlaces legales y marca del pie",
+        "privacy": "Política de privacidad",
+        "terms": "Términos de servicio",
+        "cookies": "Cookies",
+        "privacyShort": "Privacidad",
+        "termsShort": "Términos",
+        "cookiesShort": "Cookies",
+        "hideChamelio": "Ocultar la marca Chamelio",
+        "hideChamelioHint": "Quita el «Powered by Chamelio» del pie"
+      },
+      "preview": {
+        "title": "Vista previa",
+        "description": "Aproximación de cómo lo verá el huésped",
+        "yourHotel": "Tu hotel",
+        "search": "Buscar",
+        "noFooterLinks": "Sin enlaces legales configurados",
+        "poweredBy": "Powered by Chamelio"
+      },
+      "upload": "Subir",
+      "remove": "Quitar"
     }
   },
   "status": {
@@ -510,7 +556,7 @@
     "tomorrow": "Mañana"
   },
   "bookingEnginePublic": {
-    "poweredBy": "Powered by",
+    "poweredBy": "Powered by Chamelio",
     "selectProperty": "Selecciona una Propiedad",
     "selectPropertyDesc": "Elige la propiedad donde deseas reservar",
     "noProperties": "Sin Propiedades Disponibles",

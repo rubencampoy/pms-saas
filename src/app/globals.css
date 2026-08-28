@@ -1,7 +1,15 @@
 @import "tailwindcss";
 
-@theme inline {
+/* El color primario va en un @theme NO inline a propósito: así las utilidades
+   compilan a `var(--color-primary)` en vez de al literal, y el motor de reservas
+   puede repintarse con el color de marca de cada propiedad sobrescribiendo la
+   variable en un contenedor. Con `@theme inline` el valor queda incrustado y no
+   hay forma de cambiarlo en runtime. */
+@theme {
   --color-primary: #137fec;
+}
+
+@theme inline {
   --color-background-light: #f6f7f8;
   --color-background-dark: #101922;
   --color-sidebar: #0a1118;

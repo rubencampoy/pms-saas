@@ -2,6 +2,7 @@ import { redirect, notFound } from 'next/navigation';
 import { bookingEngineService } from '@/server/services/booking-engine.service';
 import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
+import { BookingChrome, DEFAULT_BRANDING } from '@/components/booking-engine/booking-chrome';
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -27,6 +28,7 @@ export default async function BookingOrgPage({ params }: Props) {
 
   if (properties.length === 0) {
     return (
+      <BookingChrome branding={DEFAULT_BRANDING}>
       <div className="max-w-2xl mx-auto px-4 py-16 text-center">
         <span className="material-icons text-5xl text-slate-300 dark:text-slate-600 mb-4">hotel</span>
         <h1 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
@@ -36,10 +38,12 @@ export default async function BookingOrgPage({ params }: Props) {
           {t('noPropertiesDesc')}
         </p>
       </div>
+      </BookingChrome>
     );
   }
 
   return (
+    <BookingChrome branding={DEFAULT_BRANDING}>
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
       <div className="text-center mb-8">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
@@ -83,5 +87,6 @@ export default async function BookingOrgPage({ params }: Props) {
         })}
       </div>
     </div>
+    </BookingChrome>
   );
 }

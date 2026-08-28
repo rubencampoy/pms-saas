@@ -1,5 +1,34 @@
 import { z } from 'zod';
 
+/** Color por defecto del motor de reservas (el primario de Chamelio). */
+export const DEFAULT_BRAND_COLOR = '#137fec';
+
+/** Hex de 6 dígitos con almohadilla. Es lo que consume `<input type="color">`. */
+const hexColorSchema = z
+  .string()
+  .regex(/^#[0-9a-fA-F]{6}$/, 'El color debe ser un hex de 6 dígitos, p. ej. #137fec');
+
+/**
+ * URL de un asset de marca: la devuelve nuestro propio endpoint de subida, así
+ * que puede ser absoluta (Vercel Blob) o relativa (storage local en desarrollo).
+ */
+const brandAssetUrlSchema = z
+  .string()
+  .max(500)
+  .refine((v) => v === '' || v.startsWith('/') || v.startsWith('https://'), {
+    message: 'URL de asset inválida',
+  })
+  .default('');
+
+/** Enlace del pie a una página del cliente. Vacío = se oculta el enlace. */
+const externalUrlSchema = z
+  .string()
+  .max(500)
+  .refine((v) => v === '' || /^https?:\/\//.test(v), {
+    message: 'Debe ser una URL que empiece por http:// o https://',
+  })
+  .default('');
+
 export const bookingEngineSettingsSchema = z.object({
   propertyId: z.string().uuid(),
 
@@ -46,6 +75,17 @@ export const bookingEngineSettingsSchema = z.object({
   googleAdsConversionId: z.string().max(50).default(''),
   googleAdsConversionLabel: z.string().max(50).default(''),
   facebookPixelId: z.string().max(50).default(''),
+
+  // Branding tab
+  brandDisplayName: z.string().max(120).default(''),
+  brandPrimaryColor: hexColorSchema.default(DEFAULT_BRAND_COLOR),
+  brandLogoUrl: brandAssetUrlSchema,
+  brandFaviconUrl: brandAssetUrlSchema,
+  brandCoverImageUrl: brandAssetUrlSchema,
+  brandHideChamelio: z.boolean().default(false),
+  brandPrivacyUrl: externalUrlSchema,
+  brandTermsUrl: externalUrlSchema,
+  brandCookiesUrl: externalUrlSchema,
 
   // Widgets tab
   widgetType: z.enum(['stacked', 'horizontal', 'floating', 'bigButton', 'smallButton', 'overlay', 'immersive']).default('stacked'),

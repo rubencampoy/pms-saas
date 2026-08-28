@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import { bookingEngineService } from '@/server/services/booking-engine.service';
+import { resolvePropertyCached } from '@/server/services/booking-engine-cache';
 import { CheckoutClient } from '@/components/booking-engine/checkout-client';
 import { getTranslations } from 'next-intl/server';
 
@@ -13,7 +14,7 @@ export default async function CheckoutPage({ params }: Props) {
 
   let resolved;
   try {
-    resolved = await bookingEngineService.resolveProperty(slug, propertyCode);
+    resolved = await resolvePropertyCached(slug, propertyCode);
   } catch {
     notFound();
   }

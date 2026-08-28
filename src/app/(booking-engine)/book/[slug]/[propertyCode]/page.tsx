@@ -1,5 +1,8 @@
 import { notFound } from 'next/navigation';
 import { bookingEngineService } from '@/server/services/booking-engine.service';
+import { resolvePropertyCached } from '@/server/services/booking-engine-cache';
+import { getBranding } from './layout';
+import Image from 'next/image';
 import { BookingEngineClient } from '@/components/booking-engine/booking-engine-client';
 import { getTranslations } from 'next-intl/server';
 
@@ -13,7 +16,7 @@ export default async function PropertyBookingPage({ params }: Props) {
 
   let resolved;
   try {
-    resolved = await bookingEngineService.resolveProperty(slug, propertyCode);
+    resolved = await resolvePropertyCached(slug, propertyCode);
   } catch {
     notFound();
   }
@@ -36,7 +39,25 @@ export default async function PropertyBookingPage({ params }: Props) {
     timezone: property.timezone,
   };
 
+  const branding = await getBranding(slug, propertyCode);
+
   return (
+    <>
+      {/* Portada del cliente. A sangre y por encima del buscador, como en el
+          diseño; si no ha subido ninguna, no se reserva espacio. */}
+      {branding?.coverImageUrl && (
+        <div className="relative h-48 sm:h-64 lg:h-80 w-full bg-slate-100 dark:bg-slate-800">
+          <Image
+            src={branding.coverImageUrl}
+            alt={branding.displayName}
+            fill
+            priority
+            sizes="100vw"
+            className="object-cover"
+          />
+        </div>
+      )}
+
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <BookingEngineClient
         slug={slug}
@@ -88,5 +109,6 @@ export default async function PropertyBookingPage({ params }: Props) {
         }}
       />
     </div>
+    </>
   );
 }

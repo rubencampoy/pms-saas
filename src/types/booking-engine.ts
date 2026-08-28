@@ -105,6 +105,29 @@ export interface BookingEngineSettings {
   redirectUrl: string;
 }
 
+/**
+ * Imagen corporativa que el motor de reservas aplica a una propiedad.
+ *
+ * Va aparte de `BookingEngineSettings` a propósito: los ajustes viajan al store
+ * del cliente, mientras que la marca solo la consume el chrome renderizado en
+ * servidor. No hay motivo para engordar el payload del navegador con ella.
+ */
+export interface BookingBranding {
+  /** Nombre a mostrar; ya resuelto contra el nombre de la propiedad. */
+  displayName: string;
+  /** Hex de 6 dígitos. Sobrescribe --color-primary en el motor. */
+  primaryColor: string;
+  /** URL del logo, o '' para caer en el isotipo + nombre por defecto. */
+  logoUrl: string;
+  faviconUrl: string;
+  coverImageUrl: string;
+  /** Oculta el «Powered by Chamelio» del pie. */
+  hideChamelio: boolean;
+  privacyUrl: string;
+  termsUrl: string;
+  cookiesUrl: string;
+}
+
 export interface CheckoutGuestData {
   firstName: string;
   lastName: string;

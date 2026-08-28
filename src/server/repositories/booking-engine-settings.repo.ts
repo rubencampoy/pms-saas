@@ -46,6 +46,15 @@ export const bookingEngineSettingsRepo = {
       googleAdsConversionId: string;
       googleAdsConversionLabel: string;
       facebookPixelId: string;
+      brandDisplayName: string;
+      brandPrimaryColor: string;
+      brandLogoUrl: string;
+      brandFaviconUrl: string;
+      brandCoverImageUrl: string;
+      brandHideChamelio: boolean;
+      brandPrivacyUrl: string;
+      brandTermsUrl: string;
+      brandCookiesUrl: string;
       widgetType: string;
       widgetLanguage: string;
       widgetOpenNewWindow: boolean;

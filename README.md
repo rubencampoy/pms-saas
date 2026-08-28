@@ -24,6 +24,21 @@ Al añadir el subdominio en Vercel hay que apuntarlo al mismo proyecto y definir
 entorno (son `NEXT_PUBLIC_*`: se inyectan en build, así que hay que redeployar
 tras cambiarlas).
 
+### Imagen corporativa del motor de reservas
+
+Cada propiedad puede personalizar su motor desde **Ajustes → Motor de reservas →
+Marca**: nombre visible, logotipo, favicon, color corporativo, imagen de portada,
+enlaces legales del pie y la opción de ocultar la marca Chamelio.
+
+El color se aplica sobrescribiendo `--color-primary` en el contenedor del motor
+(`BookingChrome`). Por eso `globals.css` declara ese token en un `@theme` **no**
+inline: con `@theme inline` las utilidades compilan al literal `#137fec` y no
+habría forma de repintarlas en runtime.
+
+Los assets se suben a **Vercel Blob** (`BLOB_READ_WRITE_TOKEN`). Sin ese token el
+código cae al proveedor local, que escribe en `public/` y solo vale para
+desarrollo.
+
 ## Stack
 
 Next.js 16 (App Router) · TypeScript strict · Tailwind CSS 4 + Shadcn/UI · Drizzle ORM + PostgreSQL · Auth.js v5 · next-intl (ES/EN).
