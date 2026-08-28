@@ -1,6 +1,7 @@
 import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { propertyRepo } from '@/server/repositories/property.repo';
+import { organizationRepo } from '@/server/repositories/organization.repo';
 import { bookingEngineSettingsRepo } from '@/server/repositories/booking-engine-settings.repo';
 import { BookingEngineClient } from '@/components/settings/booking-engine/booking-engine-client';
 
@@ -9,7 +10,10 @@ export default async function BookingEnginePage() {
   if (!session) redirect('/login');
 
   const orgId = session.user.organizationId;
-  const properties = await propertyRepo.findAll(orgId);
+  const [organization, properties] = await Promise.all([
+    organizationRepo.findById(orgId),
+    propertyRepo.findAll(orgId),
+  ]);
 
   // Load settings for all properties in parallel
   const allSettings = await Promise.all(
@@ -26,6 +30,7 @@ export default async function BookingEnginePage() {
 
   return (
     <BookingEngineClient
+      organizationSlug={organization?.slug ?? ''}
       properties={properties.map((p) => ({ id: p.id, name: p.name, code: p.code }))}
       savedSettings={settingsMap}
     />

@@ -116,11 +116,12 @@ function dbRowToFormData(row: Record<string, unknown>): BookingEngineFormData {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 interface BookingEngineClientProps {
+  organizationSlug: string;
   properties: Property[];
   savedSettings: Record<string, Record<string, unknown> | null | undefined>;
 }
 
-export function BookingEngineClient({ properties, savedSettings }: BookingEngineClientProps) {
+export function BookingEngineClient({ organizationSlug, properties, savedSettings }: BookingEngineClientProps) {
   const t = useTranslations('bookingEngine');
   const [activeTab, setActiveTab] = useState<TabId>('settings');
   const [selectedPropertyId, setSelectedPropertyId] = useState(properties[0]?.id ?? '');
@@ -219,7 +220,8 @@ export function BookingEngineClient({ properties, savedSettings }: BookingEngine
         <WidgetsTab
           data={formData}
           onChange={updateField}
-          propertyCode={selectedProperty?.code ?? 'property'}
+          organizationSlug={organizationSlug}
+          propertyCode={selectedProperty?.code ?? ''}
         />
       )}
     </div>

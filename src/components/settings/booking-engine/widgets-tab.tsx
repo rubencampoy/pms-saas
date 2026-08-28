@@ -98,6 +98,9 @@ function WidgetThumbnail({ type }: { type: WidgetType }) {
 interface WidgetsTabProps {
   data: BookingEngineFormData;
   onChange: <K extends keyof BookingEngineFormData>(key: K, value: BookingEngineFormData[K]) => void;
+  /** Slug de la organización — primer segmento de la ruta del motor de reservas */
+  organizationSlug: string;
+  /** Código exacto de la propiedad (case-sensitive: así se busca en BD) */
   propertyCode: string;
 }
 
@@ -107,23 +110,25 @@ const WIDGET_CDN_URL =
   process.env.NEXT_PUBLIC_WIDGET_CDN_URL ?? 'https://cdn.chamelioguest.com';
 const BOOKING_URL = process.env.NEXT_PUBLIC_BOOKING_URL ?? 'https://book.chamelioguest.com';
 
-export function WidgetsTab({ data, onChange, propertyCode }: WidgetsTabProps) {
+export function WidgetsTab({ data, onChange, organizationSlug, propertyCode }: WidgetsTabProps) {
   const t = useTranslations('bookingEngine.widgets');
   const tPreview = useTranslations('bookingEngine.widgets.preview');
-
-  const slug = propertyCode.toLowerCase().replace(/\s+/g, '-');
 
   const embedCode = useMemo(() => {
     return `<!-- Chamelio Booking Engine Widget -->
 <div id="chamelioBE"
-     data-property="${slug}"
+     data-org="${organizationSlug}"
+     data-property="${propertyCode}"
      data-lang="${data.widgetLanguage}"
      data-type="${data.widgetType}"></div>
 <script src="${WIDGET_CDN_URL}/widget.js"
         async></script>`;
-  }, [slug, data.widgetLanguage, data.widgetType]);
+  }, [organizationSlug, propertyCode, data.widgetLanguage, data.widgetType]);
 
-  const directUrl = `${BOOKING_URL}/${slug}?lang=${data.widgetLanguage}`;
+  const directUrl = `${BOOKING_URL}/${organizationSlug}/${propertyCode}?lang=${data.widgetLanguage}`;
+
+  /** Solo decorativo: simula el dominio del hotel en la vista previa del widget */
+  const previewSlug = (organizationSlug || propertyCode || 'mi-hotel').toLowerCase();
 
   const handleCopyCode = useCallback(() => {
     navigator.clipboard.writeText(embedCode).then(() => {
@@ -263,7 +268,7 @@ export function WidgetsTab({ data, onChange, propertyCode }: WidgetsTabProps) {
                   <div className="w-3 h-3 rounded-full bg-green-400" />
                 </div>
                 <div className="flex-1 bg-white dark:bg-slate-900 rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-500 dark:text-slate-400 truncate">
-                  {slug}.com
+                  {previewSlug}.com
                 </div>
               </div>
 
@@ -271,7 +276,7 @@ export function WidgetsTab({ data, onChange, propertyCode }: WidgetsTabProps) {
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-lg bg-emerald-500" />
-                    <span className="text-sm font-bold text-slate-700 dark:text-slate-300 capitalize">{slug.replace(/-/g, ' ')}</span>
+                    <span className="text-sm font-bold text-slate-700 dark:text-slate-300 capitalize">{previewSlug.replace(/-/g, ' ')}</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-1.5 rounded-full bg-slate-200 dark:bg-slate-700" />
