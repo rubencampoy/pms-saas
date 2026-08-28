@@ -1,6 +1,6 @@
 import { db } from '@/server/db';
 import { guests } from '@/server/db/schema';
-import { and, eq, or, ilike, asc, desc, sql } from 'drizzle-orm';
+import { and, eq, or, ilike, inArray, asc, desc, sql } from 'drizzle-orm';
 
 export const guestRepo = {
   async findAll(organizationId: string, options?: { limit?: number; offset?: number }) {
@@ -17,6 +17,20 @@ export const guestRepo = {
       where: and(
         eq(guests.organizationId, organizationId),
         eq(guests.id, id),
+      ),
+    });
+  },
+
+  /**
+   * Batch sibling of `findById`, for expanding a page of reservations without
+   * a query per row. Order is not guaranteed — callers index the result by id.
+   */
+  async findManyByIds(organizationId: string, ids: string[]) {
+    if (ids.length === 0) return [];
+    return db.query.guests.findMany({
+      where: and(
+        eq(guests.organizationId, organizationId),
+        inArray(guests.id, ids),
       ),
     });
   },

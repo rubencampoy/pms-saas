@@ -4,6 +4,7 @@ import type {
   roomTypes,
   roomTypeImages,
   guests,
+  units,
   folios,
   folioLineItems,
   payments,
@@ -11,6 +12,7 @@ import type {
 import { toPropertyDto } from './property.dto';
 import { toRoomTypeDto } from './room-type.dto';
 import { toGuestDto } from './guest.dto';
+import { toUnitDto } from './unit.dto';
 import { toFolioDto } from './folio.dto';
 
 const ORG = '11111111-1111-1111-1111-111111111111';
@@ -284,5 +286,44 @@ describe('toFolioDto', () => {
     expect(Object.keys(dto.payments![0]!).sort()).toEqual([
       'amount', 'id', 'method', 'processedAt', 'reference',
     ]);
+  });
+});
+
+const unit: typeof units.$inferSelect = {
+  id: '44444444-4444-4444-4444-444444444444',
+  organizationId: ORG,
+  propertyId: '22222222-2222-2222-2222-222222222222',
+  roomTypeId: '55555555-5555-5555-5555-555555555555',
+  name: 'A-101',
+  floor: '1',
+  status: 'occupied',
+  housekeepingStatus: 'dirty',
+  isActive: true,
+  sortOrder: 3,
+  notes: 'Lock battery replaced in March',
+  createdAt: new Date('2026-01-01T00:00:00.000Z'),
+  updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+};
+
+describe('toUnitDto', () => {
+  it('never leaks housekeeping state, staff notes or inventory bookkeeping', () => {
+    const serialized = JSON.stringify(toUnitDto(unit));
+
+    expect(serialized).not.toContain('occupied');
+    expect(serialized).not.toContain('dirty');
+    expect(serialized).not.toContain('housekeeping');
+    expect(serialized).not.toContain('Lock battery');
+    expect(serialized).not.toContain('sortOrder');
+    expect(serialized).not.toContain('isActive');
+    expect(serialized).not.toContain(ORG);
+  });
+
+  it('exposes exactly the documented fields', () => {
+    expect(Object.keys(toUnitDto(unit)).sort()).toEqual(['floor', 'id', 'name']);
+  });
+
+  it('keeps the name, which is what an integration matches a door lock on', () => {
+    expect(toUnitDto(unit).name).toBe('A-101');
+    expect(toUnitDto({ ...unit, floor: null }).floor).toBeNull();
   });
 });

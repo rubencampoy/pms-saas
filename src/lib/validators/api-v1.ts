@@ -15,6 +15,20 @@ const statusList = z
       .min(1),
   );
 
+/**
+ * `?include=a,b` — expand related resources. Each endpoint declares which
+ * expansions it understands, so asking a list for something only the detail
+ * can give back is a 400 rather than a silently ignored parameter.
+ */
+function includeParam<T extends readonly [string, ...string[]]>(values: T) {
+  return z
+    .string()
+    .transform((value) => value.split(',').map((s) => s.trim()).filter(Boolean))
+    .pipe(z.array(z.enum(values)))
+    .optional()
+    .default([]);
+}
+
 export const listReservationsQuerySchema = z
   .object({
     propertyId: z.string().uuid('Invalid property ID').optional(),
@@ -30,6 +44,12 @@ export const listReservationsQuerySchema = z
       .min(1)
       .max(API_PAGE_SIZE_MAX)
       .default(API_PAGE_SIZE_DEFAULT),
+    /**
+     * `guest` and `unit` only. `folio` is deliberately absent: one folio per
+     * reservation times a 200-row page is a query storm, and nothing needs
+     * balances in bulk.
+     */
+    include: includeParam(['guest', 'unit']),
   })
   .refine(
     (data) =>
@@ -43,14 +63,9 @@ export const listRoomTypesQuerySchema = z.object({
   propertyId: z.string().uuid('Invalid property ID').optional(),
 });
 
-/** `?include=guest,folio` — expand related resources on a single reservation. */
+/** `?include=guest,unit,folio` — expand related resources on a single reservation. */
 export const reservationIncludeSchema = z.object({
-  include: z
-    .string()
-    .transform((value) => value.split(',').map((s) => s.trim()).filter(Boolean))
-    .pipe(z.array(z.enum(['guest', 'folio'])))
-    .optional()
-    .default([]),
+  include: includeParam(['guest', 'unit', 'folio']),
 });
 
 export const lookupReservationQuerySchema = z.object({

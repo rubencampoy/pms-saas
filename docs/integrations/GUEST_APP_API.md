@@ -58,7 +58,7 @@ Lost keys are replaced, not recovered.
 | `properties:read` | Properties and their public settings |
 | `room_types:read` | Room types and images |
 | `reservations:read` | Reservations |
-| `guests:read` | Guest profiles |
+| `guests:read` | Guest profiles, and the `guest` expansion on reservations |
 | `folios:read` | Folios, charges, balances |
 | `availability:read` | Availability search |
 
@@ -174,6 +174,28 @@ Keyset-paginated list. The only paginated endpoint.
 | `checkInFrom` / `checkInTo` | `YYYY-MM-DD` | Inclusive range on `checkInDate` |
 | `cursor` | opaque | From a previous `meta.nextCursor` |
 | `limit` | int | 1–200, default 50 |
+| `include` | csv | `guest`, `unit` — expand related resources on every row |
+
+`include=guest` additionally requires **`guests:read`**; `include=unit` needs
+nothing beyond `reservations:read`. Each expansion costs **one batched query
+for the whole page**, not one per row, so a 200-row page with both is three
+queries. `folio` is rejected here on purpose (`invalid_request`): one folio per
+reservation across a full page is a query storm, and nothing needs balances in
+bulk — fetch the single reservation for that.
+
+A reservation with no room assigned yet returns `"unit": null`. The field is
+absent entirely when the expansion was not requested — `null` means unassigned,
+missing means unasked.
+
+```bash
+curl -H "Authorization: Bearer $CHAMELIO_API_KEY" \
+  "https://<host>/api/v1/reservations?updatedSince=2026-08-27T00:00:00Z&include=guest,unit&limit=200"
+```
+
+Unit expansion is what lets an integration act on the room: the reservation
+already carries `unitId`, but a UUID cannot be matched against a door lock or
+printed on a key card. `unit` exposes `id`, `name` and `floor` — never
+housekeeping state, staff notes or inventory flags.
 
 ```bash
 curl -H "Authorization: Bearer $CHAMELIO_API_KEY" \
@@ -198,15 +220,18 @@ curl -H "Authorization: Bearer $CHAMELIO_API_KEY" \
 ```
 
 **Never returned:** `organizationId`, `internalNotes`, `cancellationReason`.
+On an expanded `unit`: `status`, `housekeepingStatus`, `notes`, `isActive`,
+`sortOrder`.
 
 ### `GET /reservations/{id}` — `reservations:read`
 
-`?include=guest,folio` expands related resources. **`guest` additionally
+`?include=guest,unit,folio` expands related resources. **`guest` additionally
 requires `guests:read`, `folio` requires `folios:read`** — a key without them
-gets `403 insufficient_scope` rather than a silently trimmed response.
+gets `403 insufficient_scope` rather than a silently trimmed response. `unit`
+requires no extra scope.
 
-`folio` is `null` when the reservation has no folio yet; the field is absent
-entirely when not requested.
+`folio` and `unit` are `null` when the reservation has no folio / no room
+assigned yet; the field is absent entirely when not requested.
 
 ### `GET /reservations/lookup` — `reservations:read` **and** `guests:read`
 

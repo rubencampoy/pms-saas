@@ -4,26 +4,30 @@ import { ApiScope } from '@/lib/constants/api';
 import { reservationIncludeSchema } from '@/lib/validators/api-v1';
 import { reservationRepo } from '@/server/repositories/reservation.repo';
 import { guestRepo } from '@/server/repositories/guest.repo';
+import { unitRepo } from '@/server/repositories/unit.repo';
 import { folioRepo, folioLineItemRepo, paymentRepo } from '@/server/repositories/folio.repo';
 import { apiInvalidRequest, apiNotFound, apiSuccess } from '@/server/api/response';
 import { withApiKey, requireScope, type ApiContext } from '@/server/api/with-api-key';
 import { isPropertyVisible } from '@/server/api/scope';
 import { toReservationDto, type ReservationDto } from '@/server/api/v1/dto/reservation.dto';
 import { toGuestDto, type GuestDto } from '@/server/api/v1/dto/guest.dto';
+import { toUnitDto, type UnitDto } from '@/server/api/v1/dto/unit.dto';
 import { toFolioDto, type FolioDto } from '@/server/api/v1/dto/folio.dto';
 
 const paramsSchema = z.object({ id: z.string().uuid() });
 
 interface ReservationDetailDto extends ReservationDto {
   guest?: GuestDto;
+  unit?: UnitDto | null;
   folio?: FolioDto | null;
 }
 
 /**
  * GET /api/v1/reservations/{id}
  *
- * Query: include — csv of `guest`, `folio`. Expanding `guest` additionally
- * requires the `guests:read` scope, `folio` requires `folios:read`.
+ * Query: include — csv of `guest`, `unit`, `folio`. Expanding `guest`
+ * additionally requires the `guests:read` scope, `folio` requires
+ * `folios:read`; `unit` needs nothing beyond the scope of this route.
  */
 export const GET = withApiKey<{ id: string }>(
   ApiScope.RESERVATIONS_READ,
@@ -43,6 +47,7 @@ export const GET = withApiKey<{ id: string }>(
     const { include } = parsedQuery.data;
 
     const wantsGuest = include.includes('guest');
+    const wantsUnit = include.includes('unit');
     const wantsFolio = include.includes('folio');
 
     // Check the expansion scopes before touching the database, so a key
@@ -72,6 +77,15 @@ export const GET = withApiKey<{ id: string }>(
         reservation.guestId,
       );
       if (guest) detail.guest = toGuestDto(guest);
+    }
+
+    if (wantsUnit) {
+      // An explicit null says "no room assigned yet"; the field being absent
+      // would mean the expansion was never requested.
+      const unit = reservation.unitId
+        ? await unitRepo.findById(context.organizationId, reservation.unitId)
+        : null;
+      detail.unit = unit ? toUnitDto(unit) : null;
     }
 
     if (wantsFolio) {
