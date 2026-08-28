@@ -3,6 +3,13 @@ import { z } from 'zod';
 /** Color por defecto del motor de reservas (el primario de Chamelio). */
 export const DEFAULT_BRAND_COLOR = '#137fec';
 
+/**
+ * Fondo de la cabecera del motor: blanca (la de siempre), pintada con el color
+ * de marca, o el slate oscuro del sistema de diseño.
+ */
+export const BOOKING_HEADER_STYLES = ['light', 'brand', 'dark'] as const;
+export type BookingHeaderStyle = (typeof BOOKING_HEADER_STYLES)[number];
+
 /** Hex de 6 dígitos con almohadilla. Es lo que consume `<input type="color">`. */
 const hexColorSchema = z
   .string()
@@ -80,12 +87,14 @@ export const bookingEngineSettingsSchema = z.object({
   brandDisplayName: z.string().max(120).default(''),
   brandPrimaryColor: hexColorSchema.default(DEFAULT_BRAND_COLOR),
   brandLogoUrl: brandAssetUrlSchema,
+  brandLogoInverseUrl: brandAssetUrlSchema,
   brandFaviconUrl: brandAssetUrlSchema,
   brandCoverImageUrl: brandAssetUrlSchema,
   brandHideChamelio: z.boolean().default(false),
   brandPrivacyUrl: externalUrlSchema,
   brandTermsUrl: externalUrlSchema,
   brandCookiesUrl: externalUrlSchema,
+  brandHeaderStyle: z.enum(BOOKING_HEADER_STYLES).default('light'),
 
   // Widgets tab
   widgetType: z.enum(['stacked', 'horizontal', 'floating', 'bigButton', 'smallButton', 'overlay', 'immersive']).default('stacked'),

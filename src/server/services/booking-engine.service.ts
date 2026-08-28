@@ -5,7 +5,11 @@ import { folioRepo, folioLineItemRepo } from '@/server/repositories/folio.repo';
 import { reservationService } from '@/server/services/reservation.service';
 import { ConflictError, NotFoundError } from '@/lib/errors';
 import { differenceInDays } from 'date-fns';
-import { DEFAULT_BRAND_COLOR } from '@/lib/validators/booking-engine-settings';
+import {
+  BOOKING_HEADER_STYLES,
+  DEFAULT_BRAND_COLOR,
+  type BookingHeaderStyle,
+} from '@/lib/validators/booking-engine-settings';
 import type {
   SearchResult,
   RatePlanOption,
@@ -21,6 +25,14 @@ import type {
   BookingConfirmationItem,
   BookingConfirmationAddon,
 } from '@/types/booking-engine';
+
+/**
+ * La columna del estilo de cabecera es un `varchar`, así que lo que viene de la
+ * base de datos no está tipado: se comprueba antes de dárselo al chrome.
+ */
+function isHeaderStyle(value: string | undefined | null): value is BookingHeaderStyle {
+  return BOOKING_HEADER_STYLES.includes(value as BookingHeaderStyle);
+}
 
 const DEFAULT_SETTINGS: BookingEngineSettings = {
   availabilityView: 'collapsed',
@@ -259,17 +271,20 @@ export const bookingEngineService = {
     propertyName: string,
   ): Promise<BookingBranding> {
     const settings = await bookingEngineRepo.findSettings(organizationId, propertyId);
+    const headerStyle = settings?.brandHeaderStyle;
 
     return {
       displayName: settings?.brandDisplayName || propertyName,
       primaryColor: settings?.brandPrimaryColor || DEFAULT_BRAND_COLOR,
       logoUrl: settings?.brandLogoUrl ?? '',
+      logoInverseUrl: settings?.brandLogoInverseUrl ?? '',
       faviconUrl: settings?.brandFaviconUrl ?? '',
       coverImageUrl: settings?.brandCoverImageUrl ?? '',
       hideChamelio: settings?.brandHideChamelio ?? false,
       privacyUrl: settings?.brandPrivacyUrl ?? '',
       termsUrl: settings?.brandTermsUrl ?? '',
       cookiesUrl: settings?.brandCookiesUrl ?? '',
+      headerStyle: isHeaderStyle(headerStyle) ? headerStyle : 'light',
     };
   },
 

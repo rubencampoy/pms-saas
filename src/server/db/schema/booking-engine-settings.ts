@@ -59,12 +59,16 @@ export const bookingEngineSettings = pgTable(
     brandDisplayName: varchar('brand_display_name', { length: 120 }).default(''),
     brandPrimaryColor: varchar('brand_primary_color', { length: 7 }).notNull().default('#137fec'),
     brandLogoUrl: varchar('brand_logo_url', { length: 500 }).default(''),
+    // Variante del logo para cabecera pintada u oscura: el logo normal suele
+    // ser tinta oscura sobre blanco y ahí desaparece.
+    brandLogoInverseUrl: varchar('brand_logo_inverse_url', { length: 500 }).default(''),
     brandFaviconUrl: varchar('brand_favicon_url', { length: 500 }).default(''),
     brandCoverImageUrl: varchar('brand_cover_image_url', { length: 500 }).default(''),
     brandHideChamelio: boolean('brand_hide_chamelio').notNull().default(false),
     brandPrivacyUrl: varchar('brand_privacy_url', { length: 500 }).default(''),
     brandTermsUrl: varchar('brand_terms_url', { length: 500 }).default(''),
     brandCookiesUrl: varchar('brand_cookies_url', { length: 500 }).default(''),
+    brandHeaderStyle: varchar('brand_header_style', { length: 20 }).notNull().default('light'),
 
     // ── Widgets tab ──
     widgetType: varchar('widget_type', { length: 20 }).notNull().default('stacked'),

@@ -7,7 +7,10 @@ import { AnalyticsTab } from './analytics-tab';
 import { WidgetsTab } from './widgets-tab';
 import { BrandingTab } from './branding-tab';
 import { saveBookingEngineSettings } from '@/server/actions/booking-engine-settings';
-import { DEFAULT_BRAND_COLOR } from '@/lib/validators/booking-engine-settings';
+import {
+  DEFAULT_BRAND_COLOR,
+  type BookingHeaderStyle,
+} from '@/lib/validators/booking-engine-settings';
 import { toast } from '@/lib/hooks/use-toast';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -56,12 +59,14 @@ export interface BookingEngineFormData {
   brandDisplayName: string;
   brandPrimaryColor: string;
   brandLogoUrl: string;
+  brandLogoInverseUrl: string;
   brandFaviconUrl: string;
   brandCoverImageUrl: string;
   brandHideChamelio: boolean;
   brandPrivacyUrl: string;
   brandTermsUrl: string;
   brandCookiesUrl: string;
+  brandHeaderStyle: BookingHeaderStyle;
   // Widgets tab
   widgetType: 'stacked' | 'horizontal' | 'floating' | 'bigButton' | 'smallButton' | 'overlay' | 'immersive';
   widgetLanguage: string;
@@ -102,12 +107,14 @@ const DEFAULT_FORM_DATA: BookingEngineFormData = {
   brandDisplayName: '',
   brandPrimaryColor: DEFAULT_BRAND_COLOR,
   brandLogoUrl: '',
+  brandLogoInverseUrl: '',
   brandFaviconUrl: '',
   brandCoverImageUrl: '',
   brandHideChamelio: false,
   brandPrivacyUrl: '',
   brandTermsUrl: '',
   brandCookiesUrl: '',
+  brandHeaderStyle: 'light',
   widgetType: 'stacked',
   widgetLanguage: 'es',
   widgetOpenNewWindow: false,

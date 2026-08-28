@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import { getTranslations } from 'next-intl/server';
 import { readableForeground } from '@/lib/utils/color';
+import { headerLogoUrl, headerPalette } from '@/lib/utils/booking-header';
 import { DEFAULT_BRAND_COLOR } from '@/lib/validators/booking-engine-settings';
 import type { BookingBranding } from '@/types/booking-engine';
 
@@ -9,18 +10,20 @@ export const DEFAULT_BRANDING: BookingBranding = {
   displayName: 'Chamelio',
   primaryColor: DEFAULT_BRAND_COLOR,
   logoUrl: '',
+  logoInverseUrl: '',
   faviconUrl: '',
   coverImageUrl: '',
   hideChamelio: false,
   privacyUrl: '',
   termsUrl: '',
   cookiesUrl: '',
+  headerStyle: 'light',
 };
 
 /** Isotipo de Chamelio, que se usa cuando el cliente no ha subido logo. */
-function ChamelioMark() {
+function ChamelioMark({ className }: { className: string }) {
   return (
-    <div className="text-primary size-8">
+    <div className={`size-8 ${className}`}>
       <svg fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
         <path
           d="M36.7273 44C33.9891 44 31.6043 39.8386 30.3636 33.69C29.123 39.8386 26.7382 44 24 44C21.2618 44 18.877 39.8386 17.6364 33.69C16.3957 39.8386 14.0109 44 11.2727 44C7.25611 44 4 35.0457 4 24C4 12.9543 7.25611 4 11.2727 4C14.0109 4 16.3957 8.16144 17.6364 14.31C18.877 8.16144 21.2618 4 24 4C26.7382 4 29.123 8.16144 30.3636 14.31C31.6043 8.16144 33.9891 4 36.7273 4C40.7439 4 44 12.9543 44 24C44 35.0457 40.7439 44 36.7273 44Z"
@@ -32,16 +35,40 @@ function ChamelioMark() {
 }
 
 function BookingEngineHeader({ branding }: { branding: BookingBranding }) {
+  const palette = headerPalette(branding);
+  const logoUrl = headerLogoUrl(branding, palette !== null);
+
+  // Sobre fondo pintado el texto y los iconos heredan el color legible que se
+  // fija en el <header>; el borde y los estados hover son ese mismo color con
+  // alfa (los dos únicos foreground posibles son hex de 6 dígitos).
+  const hoverClass = palette?.isLightText ? 'hover:bg-white/10' : 'hover:bg-black/10';
+  const chipClass = palette?.isLightText ? 'bg-white/15' : 'bg-black/10';
+
   return (
-    <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-50">
+    <header
+      style={
+        palette
+          ? {
+              backgroundColor: palette.background,
+              color: palette.foreground,
+              borderColor: `${palette.foreground}26`,
+            }
+          : undefined
+      }
+      className={`border-b sticky top-0 z-50 ${
+        palette
+          ? ''
+          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+      }`}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo del cliente, o el de Chamelio si no ha subido ninguno */}
           <div className="flex items-center gap-2 min-w-0">
-            {branding.logoUrl ? (
+            {logoUrl ? (
               <span className="relative block h-10 w-40 flex-shrink-0">
                 <Image
-                  src={branding.logoUrl}
+                  src={logoUrl}
                   alt={branding.displayName}
                   fill
                   unoptimized
@@ -51,8 +78,12 @@ function BookingEngineHeader({ branding }: { branding: BookingBranding }) {
               </span>
             ) : (
               <>
-                <ChamelioMark />
-                <span className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white truncate">
+                <ChamelioMark className={palette ? 'text-current' : 'text-primary'} />
+                <span
+                  className={`text-xl font-extrabold tracking-tight truncate ${
+                    palette ? '' : 'text-slate-900 dark:text-white'
+                  }`}
+                >
                   {branding.displayName}
                 </span>
               </>
@@ -61,16 +92,38 @@ function BookingEngineHeader({ branding }: { branding: BookingBranding }) {
 
           {/* Right side */}
           <div className="flex items-center gap-6">
-            <button className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-              <span className="material-icons text-xl text-slate-600 dark:text-slate-400">
+            <button
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors ${
+                palette ? hoverClass : 'hover:bg-slate-50 dark:hover:bg-slate-800'
+              }`}
+            >
+              <span
+                className={`material-icons text-xl ${
+                  palette ? 'opacity-80' : 'text-slate-600 dark:text-slate-400'
+                }`}
+              >
                 language
               </span>
-              <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+              <span
+                className={`text-sm font-semibold ${
+                  palette ? '' : 'text-slate-700 dark:text-slate-300'
+                }`}
+              >
                 ES/EN
               </span>
             </button>
-            <div className="h-10 w-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-              <span className="material-icons text-slate-600 dark:text-slate-400">person</span>
+            <div
+              className={`h-10 w-10 rounded-full flex items-center justify-center ${
+                palette ? chipClass : 'bg-slate-100 dark:bg-slate-800'
+              }`}
+            >
+              <span
+                className={`material-icons ${
+                  palette ? '' : 'text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                person
+              </span>
             </div>
           </div>
         </div>

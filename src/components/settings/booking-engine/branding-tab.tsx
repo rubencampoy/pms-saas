@@ -6,7 +6,8 @@ import Image from 'next/image';
 import { ToggleSwitch } from '@/components/ui/toggle-switch';
 import { toast } from '@/lib/hooks/use-toast';
 import { BRAND_ASSET_RULES, type BrandAssetKind } from '@/lib/validators/brand-asset';
-import { DEFAULT_BRAND_COLOR } from '@/lib/validators/booking-engine-settings';
+import { BOOKING_HEADER_STYLES, DEFAULT_BRAND_COLOR } from '@/lib/validators/booking-engine-settings';
+import { headerLogoUrl, headerPalette } from '@/lib/utils/booking-header';
 import { contrastRatio, hasReadableWhiteText, readableForeground, LIGHT_FOREGROUND } from '@/lib/utils/color';
 import type { BookingEngineFormData } from './booking-engine-client';
 
@@ -89,6 +90,11 @@ interface AssetUploaderProps {
   onChange: (url: string) => void;
   /** Alto de la vista previa; un favicon y una portada no se enseñan igual. */
   previewClassName: string;
+  /**
+   * Fondo de la vista previa. El logo inverso es claro por definición: sobre el
+   * gris del recuadro no se vería, así que se enseña sobre su cabecera real.
+   */
+  previewStyle?: React.CSSProperties;
 }
 
 function AssetUploader({
@@ -101,6 +107,7 @@ function AssetUploader({
   value,
   onChange,
   previewClassName,
+  previewStyle,
 }: AssetUploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -139,6 +146,7 @@ function AssetUploader({
 
       <div className="mt-3 flex items-center gap-4">
         <div
+          style={previewStyle}
           className={`relative flex items-center justify-center rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 overflow-hidden ${previewClassName}`}
         >
           {value ? (
@@ -222,6 +230,24 @@ export function BrandingTab({
   const whiteTextIsReadable = hasReadableWhiteText(color);
   const ratio = contrastRatio(color, LIGHT_FOREGROUND);
   const headerName = data.brandDisplayName || propertyName;
+
+  // La cabecera del motor y la de la vista previa se pintan con las mismas
+  // funciones que usa el chrome público, así que lo que se ve aquí es lo que
+  // verá el huésped.
+  const palette = headerPalette({ headerStyle: data.brandHeaderStyle, primaryColor: color });
+  const previewLogoUrl = headerLogoUrl(
+    { logoUrl: data.brandLogoUrl, logoInverseUrl: data.brandLogoInverseUrl },
+    palette !== null,
+  );
+  const missingInverseLogo =
+    palette !== null && data.brandLogoUrl !== '' && data.brandLogoInverseUrl === '';
+
+  /** Etiquetas de los tres estilos, sin claves de traducción dinámicas. */
+  const headerStyleLabels = {
+    light: t('header.styles.light'),
+    brand: t('header.styles.brand'),
+    dark: t('header.styles.dark'),
+  };
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
@@ -324,6 +350,87 @@ export function BrandingTab({
           )}
         </Card>
 
+        {/* Cabecera */}
+        <Card
+          icon="web_asset"
+          iconBg="bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400"
+          title={t('header.title')}
+          description={t('header.description')}
+        >
+          <div className="space-y-5">
+            <div className="grid grid-cols-3 gap-2">
+              {BOOKING_HEADER_STYLES.map((style) => {
+                const swatch = headerPalette({ headerStyle: style, primaryColor: color });
+                const selected = data.brandHeaderStyle === style;
+                return (
+                  <button
+                    key={style}
+                    type="button"
+                    onClick={() => onChange('brandHeaderStyle', style)}
+                    className={`rounded-lg border-2 p-2 transition-colors ${
+                      selected
+                        ? 'border-primary'
+                        : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                    }`}
+                  >
+                    <span
+                      style={
+                        swatch
+                          ? { backgroundColor: swatch.background, color: swatch.foreground }
+                          : undefined
+                      }
+                      className={`flex h-9 items-center gap-1.5 rounded-md px-2 ${
+                        swatch ? '' : 'bg-white text-slate-900 border border-slate-200'
+                      }`}
+                    >
+                      <span className="material-icons text-sm">hotel</span>
+                      <span className="h-1.5 flex-1 rounded-full bg-current opacity-40" />
+                    </span>
+                    <span
+                      className={`mt-2 block text-xs font-medium ${
+                        selected ? 'text-primary' : 'text-slate-600 dark:text-slate-400'
+                      }`}
+                    >
+                      {headerStyleLabels[style]}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* El logo inverso solo tiene sentido con la cabecera pintada */}
+            {palette && (
+              <>
+                <AssetUploader
+                  kind="logoInverse"
+                  propertyId={propertyId}
+                  label={t('header.logoInverse')}
+                  hint={t('header.logoInverseHint')}
+                  emptyLabel={t('upload')}
+                  removeLabel={t('remove')}
+                  value={data.brandLogoInverseUrl}
+                  onChange={(v) => onChange('brandLogoInverseUrl', v)}
+                  previewClassName="h-16 w-32"
+                  previewStyle={{ backgroundColor: palette.background }}
+                />
+
+                {/* Un logo de tinta oscura sobre la cabecera pintada desaparece:
+                    conviene avisar antes de que el motor salga así publicado. */}
+                {missingInverseLogo && (
+                  <div className="flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-3 py-2.5">
+                    <span className="material-icons text-base text-amber-600 dark:text-amber-400 mt-0.5">
+                      warning_amber
+                    </span>
+                    <p className="text-xs text-amber-800 dark:text-amber-300">
+                      {t('header.missingInverse')}
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </Card>
+
         {/* Portada */}
         <Card
           icon="image"
@@ -399,12 +506,25 @@ export function BrandingTab({
         >
           <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
             {/* Cabecera del motor */}
-            <div className="flex items-center justify-between bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 h-14">
+            <div
+              style={
+                palette
+                  ? {
+                      backgroundColor: palette.background,
+                      color: palette.foreground,
+                      borderColor: `${palette.foreground}26`,
+                    }
+                  : undefined
+              }
+              className={`flex items-center justify-between border-b px-4 h-14 ${
+                palette ? '' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+              }`}
+            >
               <div className="flex items-center gap-2 min-w-0">
-                {data.brandLogoUrl ? (
+                {previewLogoUrl ? (
                   <span className="relative h-8 w-24 flex-shrink-0">
                     <Image
-                      src={data.brandLogoUrl}
+                      src={previewLogoUrl}
                       alt={headerName}
                       fill
                       unoptimized
@@ -415,17 +535,25 @@ export function BrandingTab({
                   <>
                     <span
                       className="material-icons text-2xl flex-shrink-0"
-                      style={{ color }}
+                      style={palette ? undefined : { color }}
                     >
                       hotel
                     </span>
-                    <span className="text-base font-extrabold tracking-tight text-slate-900 dark:text-white truncate">
+                    <span
+                      className={`text-base font-extrabold tracking-tight truncate ${
+                        palette ? '' : 'text-slate-900 dark:text-white'
+                      }`}
+                    >
                       {headerName || t('preview.yourHotel')}
                     </span>
                   </>
                 )}
               </div>
-              <span className="material-icons text-xl text-slate-400">language</span>
+              <span
+                className={`material-icons text-xl ${palette ? 'opacity-80' : 'text-slate-400'}`}
+              >
+                language
+              </span>
             </div>
 
             {/* Portada */}

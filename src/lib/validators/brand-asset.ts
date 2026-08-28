@@ -5,7 +5,7 @@ import { z } from 'zod';
  * reservas. Cada tipo tiene su propio límite: un favicon no debería pesar lo
  * mismo que una foto de portada.
  */
-export const BRAND_ASSET_KINDS = ['logo', 'favicon', 'cover'] as const;
+export const BRAND_ASSET_KINDS = ['logo', 'logoInverse', 'favicon', 'cover'] as const;
 export type BrandAssetKind = (typeof BRAND_ASSET_KINDS)[number];
 
 interface BrandAssetRule {
@@ -19,6 +19,12 @@ export const BRAND_ASSET_RULES: Record<BrandAssetKind, BrandAssetRule> = {
   logo: {
     maxSize: 500 * 1024,
     types: ['image/png', 'image/svg+xml', 'image/webp', 'image/jpeg'],
+  },
+  logoInverse: {
+    // Va sobre la cabecera pintada, así que tiene que poder ser transparente:
+    // fuera JPG, que siempre trae un fondo opaco pegado.
+    maxSize: 500 * 1024,
+    types: ['image/png', 'image/svg+xml', 'image/webp'],
   },
   favicon: {
     // Se sirve tal cual como <link rel="icon">, así que conviene que sea diminuto.

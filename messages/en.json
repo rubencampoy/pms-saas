@@ -328,6 +328,18 @@
         "description": "Repaints buttons, steps and accents of the booking engine",
         "lowContrast": "White text on this color has a contrast of {ratio}:1, below the recommended minimum of 4.5:1. Buttons may be hard to read."
       },
+      "header": {
+        "title": "Header",
+        "description": "Background of the booking engine top bar",
+        "styles": {
+          "light": "White",
+          "brand": "Brand color",
+          "dark": "Dark"
+        },
+        "logoInverse": "Logo for dark backgrounds",
+        "logoInverseHint": "PNG, SVG or WEBP with a transparent background · max. 500 KB · blends into the header, no white box",
+        "missingInverse": "With a painted header the regular logo is still used. If yours is dark ink, upload the light version here as a transparent PNG or it will disappear against the background."
+      },
       "cover": {
         "title": "Cover image",
         "description": "Photo shown above the search box",

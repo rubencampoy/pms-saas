@@ -1,0 +1,2 @@
+ALTER TABLE "booking_engine_settings" ADD COLUMN "brand_logo_inverse_url" varchar(500) DEFAULT '';--> statement-breakpoint
+ALTER TABLE "booking_engine_settings" ADD COLUMN "brand_header_style" varchar(20) DEFAULT 'light' NOT NULL;

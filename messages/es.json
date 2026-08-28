@@ -328,6 +328,18 @@
         "description": "Repinta botones, pasos y acentos del motor de reservas",
         "lowContrast": "El texto blanco sobre este color tiene un contraste de {ratio}:1, por debajo del mínimo recomendado de 4,5:1. Los botones pueden resultar difíciles de leer."
       },
+      "header": {
+        "title": "Cabecera",
+        "description": "Fondo de la barra superior del motor de reservas",
+        "styles": {
+          "light": "Blanca",
+          "brand": "Color de marca",
+          "dark": "Oscura"
+        },
+        "logoInverse": "Logotipo sobre fondo oscuro",
+        "logoInverseHint": "PNG, SVG o WEBP con fondo transparente · máx. 500 KB · se funde con la cabecera, sin recuadro blanco",
+        "missingInverse": "Con la cabecera pintada se sigue usando el logotipo normal. Si el tuyo es de tinta oscura, sube aquí la versión clara en PNG transparente o se perderá sobre el fondo."
+      },
       "cover": {
         "title": "Imagen de portada",
         "description": "Foto que aparece sobre el buscador",

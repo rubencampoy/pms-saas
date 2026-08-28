@@ -1,3 +1,5 @@
+import type { BookingHeaderStyle } from '@/lib/validators/booking-engine-settings';
+
 export interface SearchResult {
   roomTypeId: string;
   name: string;
@@ -119,6 +121,8 @@ export interface BookingBranding {
   primaryColor: string;
   /** URL del logo, o '' para caer en el isotipo + nombre por defecto. */
   logoUrl: string;
+  /** Logo para cabecera pintada u oscura; '' cae en `logoUrl`. */
+  logoInverseUrl: string;
   faviconUrl: string;
   coverImageUrl: string;
   /** Oculta el «Powered by Chamelio» del pie. */
@@ -126,6 +130,8 @@ export interface BookingBranding {
   privacyUrl: string;
   termsUrl: string;
   cookiesUrl: string;
+  /** Fondo de la cabecera: blanco, color de marca o slate oscuro. */
+  headerStyle: BookingHeaderStyle;
 }
 
 export interface CheckoutGuestData {
