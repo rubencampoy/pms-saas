@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { SearchResult } from '@/types/booking-engine';
+import { useLocale } from 'next-intl';
 import { useBookingStore } from '@/lib/hooks/use-booking-store';
 
 interface RoomTypeCardProps {
@@ -43,6 +44,7 @@ const AMENITY_ICONS: Record<string, string> = {
 export function RoomTypeCard({ result, translations: t, priceFormat }: RoomTypeCardProps) {
   const { selectedItems, selectRoom } = useBookingStore();
   const [imageIndex, setImageIndex] = useState(0);
+  const locale = useLocale();
 
   const selection = selectedItems.get(result.roomTypeId);
   const selectedQty = selection?.quantity ?? 0;
@@ -59,7 +61,7 @@ export function RoomTypeCard({ result, translations: t, priceFormat }: RoomTypeC
       : 0;
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-ES', {
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency: result.currency || 'EUR',
       minimumFractionDigits: 2,
@@ -68,7 +70,7 @@ export function RoomTypeCard({ result, translations: t, priceFormat }: RoomTypeC
   };
 
   const formatPriceWhole = (amount: number) => {
-    return new Intl.NumberFormat('es-ES', {
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency: result.currency || 'EUR',
       minimumFractionDigits: 0,

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import * as Popover from '@radix-ui/react-popover';
+import { useTranslations } from 'next-intl';
 
 interface GuestSelectorProps {
   adults: number;
@@ -25,6 +26,9 @@ export function GuestSelector({
   labelChildren,
 }: GuestSelectorProps) {
   const [open, setOpen] = useState(false);
+  // El total lo cuenta el navegador, así que el plural no puede venir ya
+  // resuelto en las props: hace falta el mensaje ICU aquí.
+  const t = useTranslations('bookingEnginePublic');
 
   if (guestFilter === 'none') return null;
 
@@ -43,7 +47,7 @@ export function GuestSelector({
               {labelGuests}
             </div>
             <div className="font-medium text-slate-900 dark:text-white">
-              {total} {total === 1 ? 'guest' : 'guests'}
+              {t('guestCount', { count: total })}
             </div>
           </div>
           <span className="material-icons text-slate-400 text-sm ml-auto">expand_more</span>

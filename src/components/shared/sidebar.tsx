@@ -10,7 +10,7 @@ import { logoutAction } from '@/server/actions/auth';
 import { ChamelioLogo } from '@/components/shared/chamelio-logo';
 import { switchProperty } from '@/server/actions/property-switch';
 import { OrgSwitcher, type OrgMembership } from '@/components/shared/org-switcher';
-import type { Locale } from '@/i18n/request';
+import type { Locale } from '@/i18n/locales';
 
 interface Property {
   id: string;

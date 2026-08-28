@@ -1,5 +1,6 @@
 'use client';
 
+import { useLocale } from 'next-intl';
 import { useBookingStore } from '@/lib/hooks/use-booking-store';
 
 interface CheckoutSummaryProps {
@@ -24,11 +25,12 @@ interface CheckoutSummaryProps {
 
 export function CheckoutSummary({ translations: t, backHref }: CheckoutSummaryProps) {
   const { summary, searchParams } = useBookingStore();
+  const locale = useLocale();
 
   if (!summary) return null;
 
   const formatCurrency = (amount: number, currency: string = 'EUR') => {
-    return new Intl.NumberFormat('es-ES', {
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency,
       minimumFractionDigits: 2,

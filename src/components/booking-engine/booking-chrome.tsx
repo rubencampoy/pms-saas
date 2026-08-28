@@ -3,6 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import { readableForeground } from '@/lib/utils/color';
 import { headerLogoUrl, headerPalette } from '@/lib/utils/booking-header';
 import { DEFAULT_BRAND_COLOR } from '@/lib/validators/booking-engine-settings';
+import { LanguageSwitcher } from './language-switcher';
 import type { BookingBranding } from '@/types/booking-engine';
 
 /** Marca por defecto: la de Chamelio, para la página de selección de propiedad. */
@@ -92,26 +93,7 @@ function BookingEngineHeader({ branding }: { branding: BookingBranding }) {
 
           {/* Right side */}
           <div className="flex items-center gap-6">
-            <button
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors ${
-                palette ? hoverClass : 'hover:bg-slate-50 dark:hover:bg-slate-800'
-              }`}
-            >
-              <span
-                className={`material-icons text-xl ${
-                  palette ? 'opacity-80' : 'text-slate-600 dark:text-slate-400'
-                }`}
-              >
-                language
-              </span>
-              <span
-                className={`text-sm font-semibold ${
-                  palette ? '' : 'text-slate-700 dark:text-slate-300'
-                }`}
-              >
-                ES/EN
-              </span>
-            </button>
+            <LanguageSwitcher painted={palette !== null} hoverClass={hoverClass} />
             <div
               className={`h-10 w-10 rounded-full flex items-center justify-center ${
                 palette ? chipClass : 'bg-slate-100 dark:bg-slate-800'

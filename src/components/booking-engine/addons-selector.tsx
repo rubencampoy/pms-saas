@@ -1,5 +1,6 @@
 'use client';
 
+import { useLocale } from 'next-intl';
 import { useBookingStore } from '@/lib/hooks/use-booking-store';
 
 const DEFAULT_ADDON_ICONS: Record<string, string> = {
@@ -26,13 +27,14 @@ interface AddonsSelectorProps {
 export function AddonsSelector({ translations: t }: AddonsSelectorProps) {
   const { addons, selectedAddons, toggleAddon, settings, hasSearched, selectedItems } =
     useBookingStore();
+  const locale = useLocale();
 
   // Only show if there are addons and settings say 'before'
   if (addons.length === 0 || settings?.addonsDisplay !== 'before') return null;
   if (!hasSearched || selectedItems.size === 0) return null;
 
   const formatCurrency = (amount: number, currency: string) => {
-    return new Intl.NumberFormat('es-ES', {
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency,
       minimumFractionDigits: 0,

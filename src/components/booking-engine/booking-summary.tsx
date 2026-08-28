@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useLocale, useTranslations } from 'next-intl';
 import { useBookingStore } from '@/lib/hooks/use-booking-store';
 
 interface BookingSummaryProps {
@@ -23,8 +24,6 @@ interface BookingSummaryProps {
     needHelp?: string;
     needHelpDesc?: string;
     chatWithUs?: string;
-    occupancy?: string;
-    taxesAndFees?: string;
   };
 }
 
@@ -32,13 +31,17 @@ export function BookingSummary({ translations: t }: BookingSummaryProps) {
   const { summary, searchParams, hasSearched, selectedItems, slug, propertyCode } = useBookingStore();
   const [mobileOpen, setMobileOpen] = useState(false);
   const router = useRouter();
+  const locale = useLocale();
+  // La ocupación se cuenta en el navegador, así que su plural no puede venir
+  // resuelto en las props: hace falta el mensaje ICU aquí.
+  const tIntl = useTranslations('bookingEnginePublic');
 
   const handleContinue = () => {
     router.push(`/book/${slug}/${propertyCode}/checkout`);
   };
 
   const formatCurrency = (amount: number, currency: string = 'EUR') => {
-    return new Intl.NumberFormat('es-ES', {
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency,
       minimumFractionDigits: 2,
@@ -120,11 +123,12 @@ export function BookingSummary({ translations: t }: BookingSummaryProps) {
           </div>
           <div>
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-0.5">
-              {t.occupancy ?? 'Occupancy'}
+              {tIntl('occupancy')}
             </p>
             <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
-              {searchParams.adults} {searchParams.adults === 1 ? 'Adult' : 'Adults'}
-              {searchParams.children > 0 && `, ${searchParams.children} ${searchParams.children === 1 ? 'Child' : 'Children'}`}
+              {tIntl('adultCount', { count: searchParams.adults })}
+              {searchParams.children > 0 &&
+                `, ${tIntl('childCount', { count: searchParams.children })}`}
             </p>
           </div>
         </div>
@@ -159,7 +163,7 @@ export function BookingSummary({ translations: t }: BookingSummaryProps) {
 
         {/* Taxes placeholder */}
         <div className="flex justify-between items-center text-slate-500 text-xs mb-4">
-          <span>{t.taxesAndFees ?? 'Taxes & Fees'}</span>
+          <span>{tIntl('taxesAndFees')}</span>
           <span>—</span>
         </div>
 

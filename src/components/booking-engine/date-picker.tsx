@@ -16,7 +16,10 @@ import {
   isWithinInterval,
   startOfDay,
 } from 'date-fns';
+import type { Locale as DateFnsLocale } from 'date-fns';
 import * as Popover from '@radix-ui/react-popover';
+import { useLocale } from 'next-intl';
+import { dateFnsLocale } from '@/lib/utils/date-locale';
 
 interface DatePickerProps {
   checkIn: string;
@@ -35,6 +38,7 @@ export function DatePicker({
 }: DatePickerProps) {
   const [open, setOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const dateLocale = dateFnsLocale(useLocale());
   const [selectingEnd, setSelectingEnd] = useState(false);
   const [hoverDate, setHoverDate] = useState<Date | null>(null);
 
@@ -80,7 +84,7 @@ export function DatePicker({
                 {labelCheckIn}
               </div>
               <div className="font-medium text-slate-900 dark:text-white">
-                {checkIn ? format(new Date(checkIn), 'dd MMM yyyy') : '—'}
+                {checkIn ? format(new Date(checkIn), 'dd MMM yyyy', { locale: dateLocale }) : '—'}
               </div>
             </div>
             <span className="text-slate-300 dark:text-slate-600 self-center">→</span>
@@ -89,7 +93,7 @@ export function DatePicker({
                 {labelCheckOut}
               </div>
               <div className="font-medium text-slate-900 dark:text-white">
-                {checkOut ? format(new Date(checkOut), 'dd MMM yyyy') : '—'}
+                {checkOut ? format(new Date(checkOut), 'dd MMM yyyy', { locale: dateLocale }) : '—'}
               </div>
             </div>
           </div>
@@ -105,6 +109,7 @@ export function DatePicker({
           <div className="flex flex-col sm:flex-row gap-4">
             <CalendarMonth
               month={currentMonth}
+              locale={dateLocale}
               today={today}
               checkIn={checkInDate}
               checkOut={checkOutDate}
@@ -117,6 +122,7 @@ export function DatePicker({
             />
             <CalendarMonth
               month={nextMonth}
+              locale={dateLocale}
               today={today}
               checkIn={checkInDate}
               checkOut={checkOutDate}
@@ -136,6 +142,7 @@ export function DatePicker({
 
 interface CalendarMonthProps {
   month: Date;
+  locale: DateFnsLocale;
   today: Date;
   checkIn: Date | null;
   checkOut: Date | null;
@@ -151,6 +158,7 @@ interface CalendarMonthProps {
 
 function CalendarMonth({
   month,
+  locale,
   today,
   checkIn,
   checkOut,
@@ -175,7 +183,12 @@ function CalendarMonth({
     return daysArr;
   }, [month]);
 
-  const weekDays = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+  // Las iniciales de los días salen de la primera semana pintada, así que
+  // siguen al idioma sin tabla aparte (la rejilla siempre empieza en lunes).
+  const weekDays = useMemo(
+    () => days.slice(0, 7).map((day) => format(day, 'EEEEEE', { locale })),
+    [days, locale],
+  );
 
   return (
     <div className="w-[280px]">
@@ -193,7 +206,7 @@ function CalendarMonth({
           <div className="w-7" />
         )}
         <span className="text-sm font-semibold text-slate-900 dark:text-white">
-          {format(month, 'MMMM yyyy')}
+          {format(month, 'MMMM yyyy', { locale })}
         </span>
         {showNext ? (
           <button
@@ -210,8 +223,8 @@ function CalendarMonth({
 
       {/* Day headers */}
       <div className="grid grid-cols-7 gap-0 mb-1">
-        {weekDays.map((d) => (
-          <div key={d} className="text-center text-[10px] font-semibold text-slate-400 uppercase tracking-wider py-1">
+        {weekDays.map((d, index) => (
+          <div key={index} className="text-center text-[10px] font-semibold text-slate-400 uppercase tracking-wider py-1">
             {d}
           </div>
         ))}

@@ -2,10 +2,15 @@
 
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import { useLocale } from 'next-intl';
 import { useBookingStore } from '@/lib/hooks/use-booking-store';
 import { checkoutGuestSchema, type CheckoutGuestInput } from '@/lib/validators/booking-checkout';
 import type { BookingEngineSettings } from '@/types/booking-engine';
+
+/** Nacionalidades que ofrece el desplegable, en códigos ISO 3166-1 alfa-2. */
+const NATIONALITY_CODES = ['US', 'GB', 'CA', 'DE', 'FR', 'ES', 'NL'] as const;
 
 interface CheckoutGuestFormProps {
   settings: BookingEngineSettings;
@@ -54,7 +59,18 @@ export function CheckoutGuestForm({
   translations: t,
 }: CheckoutGuestFormProps) {
   const router = useRouter();
+  const locale = useLocale();
   const { createBooking, isBooking, bookingError, clearBookingError } = useBookingStore();
+
+  // Los nombres de país los pone el navegador a partir del código ISO, para no
+  // mantener una tabla de nacionalidades por idioma.
+  const nationalities = useMemo(() => {
+    const names = new Intl.DisplayNames([locale], { type: 'region' });
+    return NATIONALITY_CODES.map((code) => ({
+      code,
+      name: names.of(code) ?? code,
+    }));
+  }, [locale]);
 
   const {
     register,
@@ -141,12 +157,11 @@ export function CheckoutGuestForm({
               <label className={labelClass}>{t.nationality}</label>
               <select {...register('nationality')} className={inputClass}>
                 <option value="">—</option>
-                <option value="US">United States</option>
-                <option value="GB">United Kingdom</option>
-                <option value="CA">Canada</option>
-                <option value="DE">Germany</option>
-                <option value="FR">France</option>
-                <option value="ES">Spain</option>
+                {nationalities.map((nationality) => (
+                  <option key={nationality.code} value={nationality.code}>
+                    {nationality.name}
+                  </option>
+                ))}
               </select>
             </div>
           )}
